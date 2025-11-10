@@ -22,6 +22,7 @@ import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
+import type { User, UserType } from "@/lib/types";
 
 export async function POST(req: Request) {
   console.group("🔔 Clerk 웹훅 수신 시작");
@@ -87,8 +88,14 @@ export async function POST(req: Request) {
     if (eventType === "user.created") {
       console.log("👤 새 사용자 생성 이벤트 처리 시작");
 
-      const { id, email_addresses, first_name, last_name, phone_numbers } =
-        evt.data;
+      const {
+        id,
+        email_addresses,
+        first_name,
+        last_name,
+        phone_numbers,
+        public_metadata,
+      } = evt.data;
 
       const email = email_addresses?.[0]?.email_address;
       const phone = phone_numbers?.[0]?.phone_number || null;
@@ -97,10 +104,24 @@ export async function POST(req: Request) {
           ? `${first_name} ${last_name}`
           : first_name || last_name || email || "Unknown";
 
-      console.log("📧 이메일:", email);
-      console.log("📞 전화번호:", phone);
-      console.log("👤 이름:", fullName);
+      // publicMetadata에서 추가 정보 가져오기
+      const userType: UserType =
+        (public_metadata?.user_type as UserType) || "retailer";
+      const businessName =
+        (public_metadata?.business_name as string) || fullName;
+      const metadataPhone = (public_metadata?.phone as string) || phone;
 
+      console.log("📧 이메일:", email);
+      console.log("📞 전화번호:", metadataPhone || phone);
+      console.log("👤 이름:", fullName);
+      console.log("🏢 회원 유형:", userType);
+      console.log("🏪 상호명:", businessName);
+      console.log(
+        "📦 publicMetadata:",
+        JSON.stringify(public_metadata, null, 2),
+      );
+
+      // 필수 필드 검증
       if (!email) {
         console.error("❌ 이메일 주소가 없습니다.");
         console.groupEnd();
@@ -110,31 +131,99 @@ export async function POST(req: Request) {
         );
       }
 
+      if (!id) {
+        console.error("❌ 사용자 ID가 없습니다.");
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "User ID is required" },
+          { status: 400 },
+        );
+      }
+
+      // user_type 유효성 검증
+      if (userType !== "vendor" && userType !== "retailer") {
+        console.error("❌ 잘못된 사용자 유형:", userType);
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "Invalid user type" },
+          { status: 400 },
+        );
+      }
+
       // Supabase users 테이블에 사용자 저장
-      // 주의: user_type과 business_name은 필수이지만, Clerk에서 받을 수 없으므로
-      // 기본값으로 설정합니다. 나중에 사용자가 프로필을 완성하도록 할 수 있습니다.
+      // publicMetadata에서 정보를 가져오고, 없으면 기본값 사용
+      const userData: Omit<User, "created_at" | "updated_at"> = {
+        id: id, // Clerk user ID를 UUID로 사용
+        email: email,
+        user_type: userType, // publicMetadata에서 가져오거나 기본값: 소매점
+        business_name: businessName, // publicMetadata에서 가져오거나 기본값: 이름
+        phone: metadataPhone || phone || undefined,
+      };
+
+      console.log(
+        "💾 저장할 사용자 데이터:",
+        JSON.stringify(userData, null, 2),
+      );
+
       const { data, error } = await supabase
         .from("users")
-        .insert({
-          id: id, // Clerk user ID를 UUID로 사용
-          email: email,
-          user_type: "retailer", // 기본값: 소매점 (나중에 프로필에서 변경 가능)
-          business_name: fullName, // 기본값: 이름 (나중에 프로필에서 변경 가능)
-          phone: phone,
-        })
+        .insert(userData)
         .select()
         .single();
 
       if (error) {
-        console.error("❌ Supabase 사용자 생성 실패:", error);
+        console.error("❌ Supabase 사용자 생성 실패:");
         console.error("Error code:", error.code);
         console.error("Error message:", error.message);
         console.error("Error details:", error.details);
+        console.error("Error hint:", error.hint);
+        console.error("저장하려던 데이터:", JSON.stringify(userData, null, 2));
         console.groupEnd();
+
+        // 중복 키 에러 처리
+        if (error.code === "23505") {
+          // PostgreSQL unique violation
+          console.log("ℹ️ 사용자가 이미 존재합니다. 업데이트를 시도합니다.");
+
+          const { data: updatedData, error: updateError } = await supabase
+            .from("users")
+            .update({
+              email: userData.email,
+              user_type: userData.user_type,
+              business_name: userData.business_name,
+              phone: userData.phone,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userData.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error("❌ 사용자 업데이트도 실패:", updateError);
+            return NextResponse.json(
+              {
+                error: "Failed to create or update user in Supabase",
+                details: updateError.message,
+              },
+              { status: 500 },
+            );
+          }
+
+          console.log("✅ 기존 사용자 업데이트 성공:", updatedData);
+          console.groupEnd();
+
+          return NextResponse.json({
+            success: true,
+            message: "User updated in Supabase",
+            user: updatedData,
+          });
+        }
+
         return NextResponse.json(
           {
             error: "Failed to create user in Supabase",
             details: error.message,
+            code: error.code,
           },
           { status: 500 },
         );
@@ -153,8 +242,14 @@ export async function POST(req: Request) {
     if (eventType === "user.updated") {
       console.log("👤 사용자 업데이트 이벤트 처리 시작");
 
-      const { id, email_addresses, first_name, last_name, phone_numbers } =
-        evt.data;
+      const {
+        id,
+        email_addresses,
+        first_name,
+        last_name,
+        phone_numbers,
+        public_metadata,
+      } = evt.data;
 
       const email = email_addresses?.[0]?.email_address;
       const phone = phone_numbers?.[0]?.phone_number || null;
@@ -163,30 +258,128 @@ export async function POST(req: Request) {
           ? `${first_name} ${last_name}`
           : first_name || last_name || email || "Unknown";
 
+      // publicMetadata에서 추가 정보 가져오기
+      const userType: UserType =
+        (public_metadata?.user_type as UserType) || "retailer";
+      const businessName =
+        (public_metadata?.business_name as string) || fullName;
+      const metadataPhone = (public_metadata?.phone as string) || phone;
+
       console.log("📧 이메일:", email);
-      console.log("📞 전화번호:", phone);
+      console.log("📞 전화번호:", metadataPhone || phone);
       console.log("👤 이름:", fullName);
+      console.log("🏢 회원 유형:", userType);
+      console.log("🏪 상호명:", businessName);
+      console.log(
+        "📦 publicMetadata:",
+        JSON.stringify(public_metadata, null, 2),
+      );
+
+      // 필수 필드 검증
+      if (!id) {
+        console.error("❌ 사용자 ID가 없습니다.");
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "User ID is required" },
+          { status: 400 },
+        );
+      }
+
+      if (!email) {
+        console.error("❌ 이메일 주소가 없습니다.");
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "Email is required" },
+          { status: 400 },
+        );
+      }
+
+      // user_type 유효성 검증
+      if (userType !== "vendor" && userType !== "retailer") {
+        console.error("❌ 잘못된 사용자 유형:", userType);
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "Invalid user type" },
+          { status: 400 },
+        );
+      }
 
       // Supabase users 테이블 업데이트
+      const updateData: Partial<User> = {
+        email: email,
+        phone: metadataPhone || phone || undefined,
+        user_type: userType, // publicMetadata에서 가져온 회원 유형
+        business_name: businessName, // publicMetadata에서 가져온 상호명 또는 이름
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log(
+        "💾 업데이트할 사용자 데이터:",
+        JSON.stringify(updateData, null, 2),
+      );
+
       const { data, error } = await supabase
         .from("users")
-        .update({
-          email: email,
-          phone: phone,
-          business_name: fullName, // 이름이 변경되면 business_name도 업데이트
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
 
       if (error) {
-        console.error("❌ Supabase 사용자 업데이트 실패:", error);
+        console.error("❌ Supabase 사용자 업데이트 실패:");
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        console.error("Error details:", error.details);
+        console.error("Error hint:", error.hint);
+        console.error(
+          "업데이트하려던 데이터:",
+          JSON.stringify(updateData, null, 2),
+        );
         console.groupEnd();
+
+        // 사용자가 존재하지 않는 경우
+        if (error.code === "PGRST116") {
+          // PostgREST not found
+          console.log("ℹ️ 사용자가 존재하지 않습니다. 생성을 시도합니다.");
+
+          const { data: createdData, error: createError } = await supabase
+            .from("users")
+            .insert({
+              id: id,
+              email: email,
+              user_type: userType,
+              business_name: businessName,
+              phone: metadataPhone || phone || undefined,
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error("❌ 사용자 생성도 실패:", createError);
+            return NextResponse.json(
+              {
+                error: "Failed to update or create user in Supabase",
+                details: createError.message,
+              },
+              { status: 500 },
+            );
+          }
+
+          console.log("✅ 새 사용자 생성 성공:", createdData);
+          console.groupEnd();
+
+          return NextResponse.json({
+            success: true,
+            message: "User created in Supabase",
+            user: createdData,
+          });
+        }
+
         return NextResponse.json(
           {
             error: "Failed to update user in Supabase",
             details: error.message,
+            code: error.code,
           },
           { status: 500 },
         );
@@ -207,18 +400,49 @@ export async function POST(req: Request) {
 
       const { id } = evt.data;
 
+      // 필수 필드 검증
+      if (!id) {
+        console.error("❌ 사용자 ID가 없습니다.");
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "User ID is required" },
+          { status: 400 },
+        );
+      }
+
       console.log("🗑️ 삭제할 사용자 ID:", id);
 
       // Supabase users 테이블에서 사용자 삭제
-      const { error } = await supabase.from("users").delete().eq("id", id);
+      const { error, data } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", id)
+        .select()
+        .single();
 
       if (error) {
-        console.error("❌ Supabase 사용자 삭제 실패:", error);
+        console.error("❌ Supabase 사용자 삭제 실패:");
+        console.error("Error code:", error.code);
+        console.error("Error message:", error.message);
+        console.error("Error details:", error.details);
+        console.error("Error hint:", error.hint);
         console.groupEnd();
+
+        // 사용자가 이미 존재하지 않는 경우는 성공으로 처리
+        if (error.code === "PGRST116") {
+          console.log("ℹ️ 사용자가 이미 존재하지 않습니다.");
+          console.groupEnd();
+          return NextResponse.json({
+            success: true,
+            message: "User already deleted or not found",
+          });
+        }
+
         return NextResponse.json(
           {
             error: "Failed to delete user in Supabase",
             details: error.message,
+            code: error.code,
           },
           { status: 500 },
         );

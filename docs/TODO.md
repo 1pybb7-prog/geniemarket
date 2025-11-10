@@ -347,69 +347,154 @@
 
 #### Clerk 회원가입 페이지
 
-- [ ] 회원 유형 선택 추가 (도매점/소매점)
-- [ ] 사업자 정보 입력 폼 (상호명, 전화번호)
-- [ ] `publicMetadata`에 user_type 저장
-- [ ] 회원가입 완료 후 홈으로 리다이렉트
+- [x] 회원 유형 선택 추가 (도매점/소매점)
+  > ✅ 완료됨
+  >
+  > - 파일: `app/(auth)/sign-up/complete/page.tsx`
+  > - 회원가입 완료 후 추가 정보 입력 페이지 생성
+  > - 회원 유형 선택 (도매점/소매점)
+  > - 상호명, 전화번호 입력 폼
+- [x] 사업자 정보 입력 폼 (상호명, 전화번호)
+  > ✅ 완료됨
+  >
+  > - react-hook-form + zod를 사용한 폼 유효성 검사
+  > - 회원 유형, 상호명, 전화번호 입력
+- [x] `publicMetadata`에 user_type 저장
+  > ✅ 완료됨
+  >
+  > - 파일: `app/api/user/update-metadata/route.ts`
+  > - Clerk publicMetadata 업데이트 API 생성
+  > - 회원 유형, 상호명, 전화번호를 publicMetadata에 저장
+  > - Supabase users 테이블도 동시에 업데이트
+- [x] 회원가입 완료 후 홈으로 리다이렉트
+  > ✅ 완료됨
+  >
+  > - 회원가입 완료 후 `/sign-up/complete`로 리다이렉트
+  > - 추가 정보 입력 완료 후 홈(`/`)으로 리다이렉트
+  > - 이미 정보가 입력된 경우 자동으로 홈으로 리다이렉트
 
 #### 프로필 정보 페이지
 
-- [ ] `/profile` 페이지 생성
-- [ ] 사용자 정보 표시 (이메일, 상호명, 전화번호)
-- [ ] 정보 수정 기능 (Clerk UserProfile 활용)
+- [x] `/profile` 페이지 생성
+  > ✅ 완료됨
+  >
+  > - 파일: `app/(main)/profile/page.tsx`
+  > - 사용자 정보 표시 (이메일, 상호명, 전화번호, 회원 유형)
+  > - Supabase users 테이블에서 데이터 조회
+- [x] 사용자 정보 표시 (이메일, 상호명, 전화번호)
+  > ✅ 완료됨
+  >
+  > - Card 컴포넌트를 사용한 정보 표시
+  > - 로딩 상태 및 에러 처리
+- [x] 정보 수정 기능 (Clerk UserProfile 활용)
+  > ✅ 완료됨
+  >
+  > - Clerk의 UserProfile 컴포넌트 사용
+  > - 프로필 수정 버튼 클릭 시 UserProfile 폼 표시
 
 ### 🔌 Supabase 클라이언트 설정 (팀원 B)
 
 #### Supabase 유틸리티 함수
 
-- [ ] `lib/supabase.ts` 생성
-
-  ```typescript
-  import { createClient } from "@supabase/supabase-js";
-
-  export const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-  ```
+- [x] `lib/supabase.ts` 생성
+  > ✅ 완료됨
+  >
+  > - 파일: `lib/supabase.ts`
+  > - 기본 Supabase 클라이언트 export (`supabase`)
+  > - PRD.md에 명시된 기본 클라이언트 구현
+  > - 인증 없이 공개 데이터 접근용
+  > - 레거시 함수 `createSupabaseClient` 유지 (하위 호환성)
+  >
+  > ```typescript
+  > import { createClient } from "@supabase/supabase-js";
+  >
+  > export const supabase = createClient(
+  >   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  >   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  > );
+  > ```
 
 #### TypeScript 타입 정의
 
-- [ ] `lib/types.ts` 생성
-  - User, ProductRaw, ProductStandard, Order 등 타입 정의
-
-  ```typescript
-  export interface User {
-    id: string;
-    email: string;
-    user_type: "vendor" | "retailer";
-    business_name: string;
-    phone?: string;
-    created_at: string;
-    updated_at: string;
-  }
-
-  export interface ProductRaw {
-    id: string;
-    vendor_id: string;
-    original_name: string;
-    price: number;
-    unit: string;
-    stock: number;
-    image_url?: string;
-    created_at: string;
-    updated_at: string;
-  }
-
-  // ... 기타 타입
-  ```
+- [x] `lib/types.ts` 생성
+  > ✅ 완료됨
+  >
+  > - 파일: `lib/types.ts`
+  > - PRD.md에 명시된 모든 테이블 타입 정의
+  > - 데이터베이스 스키마와 일치하는 타입 정의
+  >
+  > **주요 타입:**
+  >
+  > - `User` - 사용자 정보 (users 테이블)
+  > - `ProductRaw` - 도매점이 등록한 원본 상품 (products_raw 테이블)
+  > - `ProductStandard` - AI가 정리한 표준 상품 (products_standard 테이블)
+  > - `ProductMapping` - 원본-표준 상품 매핑 (product_mapping 테이블)
+  > - `MarketPrice` - 공영시장 시세 (market_prices 테이블)
+  > - `Order` - 주문 정보 (orders 테이블)
+  > - `ProductPrice` - 가격 비교용 상품 정보 (v_product_prices 뷰)
+  > - `LowestPrice` - 최저가 상품 정보 (v_lowest_prices 뷰)
+  >
+  > **유틸리티 타입:**
+  >
+  > - `UserType` - "vendor" | "retailer"
+  > - `OrderStatus` - "pending" | "confirmed" | "cancelled"
+  >
+  > ```typescript
+  > export interface User {
+  >   id: string;
+  >   email: string;
+  >   user_type: "vendor" | "retailer";
+  >   business_name: string;
+  >   phone?: string;
+  >   created_at: string;
+  >   updated_at: string;
+  > }
+  >
+  > export interface ProductRaw {
+  >   id: string;
+  >   vendor_id: string;
+  >   original_name: string;
+  >   price: number;
+  >   unit: string;
+  >   stock: number;
+  >   image_url?: string;
+  >   created_at: string;
+  >   updated_at: string;
+  > }
+  >
+  > // ... 기타 타입 (ProductStandard, ProductMapping, MarketPrice, Order 등)
+  > ```
 
 #### Clerk 웹훅 API 완성
 
-- [ ] `app/api/webhooks/clerk/route.ts` 완성
-- [ ] 사용자 생성 시 Supabase에 저장
-- [ ] user_type, business_name, phone 정보 함께 저장
-- [ ] 에러 핸들링 추가
+- [x] `app/api/webhooks/clerk/route.ts` 완성
+  > ✅ 완료됨
+  >
+  > - 파일: `app/api/webhooks/clerk/route.ts`
+  > - Svix를 사용한 웹훅 서명 검증
+  > - user.created, user.updated, user.deleted 이벤트 처리
+  > - 각 단계별 상세 로그 출력
+- [x] 사용자 생성 시 Supabase에 저장
+  > ✅ 완료됨
+  >
+  > - user.created 이벤트 처리
+  > - Supabase users 테이블에 자동 저장
+  > - 중복 키 에러 시 업데이트로 전환
+- [x] user_type, business_name, phone 정보 함께 저장
+  > ✅ 완료됨
+  >
+  > - Clerk publicMetadata에서 정보 추출
+  > - user_type, business_name, phone 정보 함께 저장
+  > - publicMetadata가 없으면 기본값 사용 (user_type: "retailer")
+- [x] 에러 핸들링 추가
+  > ✅ 완료됨
+  >
+  > - 필수 필드 검증 (email, id, user_type)
+  > - user_type 유효성 검증
+  > - 중복 키 에러 처리 (업데이트로 전환)
+  > - 사용자 없음 에러 처리 (생성으로 전환)
+  > - 상세한 에러 로깅 (code, message, details, hint)
+  > - TypeScript 타입 안전성 개선 (User, UserType 타입 사용)
 
 ### 📦 도매점 상품 등록 페이지 (팀원 C)
 
