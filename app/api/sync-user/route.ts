@@ -35,19 +35,41 @@ export async function POST() {
 
     const supabase = getServiceRoleClient();
 
+    // Clerk에서 사용자 정보 추출
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress || null;
+    const phone = clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
+    const fullName =
+      clerkUser.fullName ||
+      [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
+      clerkUser.username ||
+      email ||
+      "Unknown";
+
+    if (!email) {
+      console.error("❌ 이메일 주소가 없습니다.");
+      console.groupEnd();
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    console.log("📧 이메일:", email);
+    console.log("📞 전화번호:", phone);
+    console.log("👤 이름:", fullName);
+
+    // Supabase users 테이블에 사용자 정보 동기화
+    // 주의: user_type과 business_name은 필수이지만, Clerk에서 받을 수 없으므로
+    // 기본값으로 설정합니다. 나중에 사용자가 프로필을 완성하도록 할 수 있습니다.
     const { data, error } = await supabase
       .from("users")
       .upsert(
         {
-          clerk_id: clerkUser.id,
-          name:
-            clerkUser.fullName ||
-            clerkUser.username ||
-            clerkUser.emailAddresses[0]?.emailAddress ||
-            "Unknown",
+          id: clerkUser.id, // Clerk user ID를 UUID로 사용
+          email: email,
+          user_type: "retailer", // 기본값: 소매점 (나중에 프로필에서 변경 가능)
+          business_name: fullName, // 기본값: 이름 (나중에 프로필에서 변경 가능)
+          phone: phone,
         },
         {
-          onConflict: "clerk_id",
+          onConflict: "id", // id 컬럼을 기준으로 upsert
         },
       )
       .select()

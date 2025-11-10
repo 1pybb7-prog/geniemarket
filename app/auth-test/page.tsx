@@ -9,9 +9,12 @@ import Link from "next/link";
 
 interface UserData {
   id: string;
-  clerk_id: string;
-  name: string;
+  email: string;
+  user_type: "vendor" | "retailer";
+  business_name: string;
+  phone?: string;
   created_at: string;
+  updated_at: string;
 }
 
 export default function AuthTestPage() {
@@ -54,44 +57,75 @@ export default function AuthTestPage() {
       setLoading(true);
       setError(null);
 
-      // 먼저 사용자 데이터 조회
+      console.group("🔄 사용자 데이터 동기화 시작");
+      console.log("Clerk User ID:", user.id);
+
+      // 먼저 /api/sync-user API를 호출하여 사용자 동기화
+      const syncResponse = await fetch("/api/sync-user", {
+        method: "POST",
+      });
+
+      if (!syncResponse.ok) {
+        const errorData = await syncResponse.json();
+        throw new Error(
+          errorData.error || errorData.details || "사용자 동기화 실패",
+        );
+      }
+
+      const syncResult = await syncResponse.json();
+      console.log("✅ 사용자 동기화 성공:", syncResult);
+
+      // 동기화 후 사용자 데이터 조회
       const { data, error: fetchError } = await supabase
         .from("users")
         .select("*")
-        .eq("clerk_id", user.id)
+        .eq("id", user.id)
         .single();
 
-      if (fetchError && fetchError.code !== "PGRST116") {
+      if (fetchError) {
+        console.error("❌ 사용자 데이터 조회 실패:", fetchError);
         throw fetchError;
       }
 
-      // 사용자가 없으면 생성
-      if (!data) {
-        const userName =
-          user.fullName ||
-          [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-          user.emailAddresses[0]?.emailAddress.split("@")[0] ||
-          "익명";
-
-        const { data: newUser, error: createError } = await supabase
-          .from("users")
-          .insert({
-            clerk_id: user.id,
-            name: userName,
-          })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        setUserData(newUser);
-      } else {
+      if (data) {
+        console.log("✅ 사용자 데이터 조회 성공:", data);
         setUserData(data);
+      } else {
+        throw new Error("사용자 데이터를 찾을 수 없습니다.");
       }
+
+      console.groupEnd();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "사용자 데이터 조회/생성 실패",
-      );
-      console.error("Fetch or create user error:", err);
+      // 에러 상세 정보 로깅
+      console.group("❌ 사용자 데이터 조회/생성 에러");
+      console.error("Error:", err);
+
+      if (err instanceof Error) {
+        console.error("Error message:", err.message);
+        console.error("Error stack:", err.stack);
+      }
+
+      // Supabase 에러인 경우
+      if (err && typeof err === "object" && "code" in err) {
+        console.error("Supabase error code:", (err as any).code);
+        console.error("Supabase error message:", (err as any).message);
+        console.error("Supabase error details:", (err as any).details);
+        console.error("Supabase error hint:", (err as any).hint);
+      }
+
+      console.groupEnd();
+
+      // 사용자 친화적인 에러 메시지 설정
+      let errorMessage = "사용자 데이터 조회/생성 실패";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (err && typeof err === "object" && "message" in err) {
+        errorMessage = String((err as any).message);
+      } else if (err && typeof err === "object" && "code" in err) {
+        errorMessage = `Supabase 에러: ${(err as any).code} - ${(err as any).message || "알 수 없는 에러"}`;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -106,8 +140,8 @@ export default function AuthTestPage() {
 
       const { data, error: updateError } = await supabase
         .from("users")
-        .update({ name: newName.trim() })
-        .eq("clerk_id", user.id)
+        .update({ business_name: newName.trim() })
+        .eq("id", user.id)
         .select()
         .single();
 
@@ -288,28 +322,41 @@ export default function AuthTestPage() {
               <div className="p-4 bg-white border rounded-lg">
                 <div className="space-y-3">
                   <div className="flex gap-2">
-                    <span className="font-semibold min-w-[120px]">DB ID:</span>
+                    <span className="font-semibold min-w-[120px]">ID:</span>
                     <code className="text-sm bg-gray-100 px-2 py-1 rounded">
                       {userData.id}
                     </code>
+                    <span className="text-xs text-gray-500">
+                      (Clerk User ID와 동일)
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold min-w-[120px]">이메일:</span>
+                    <span>{userData.email}</span>
                   </div>
                   <div className="flex gap-2">
                     <span className="font-semibold min-w-[120px]">
-                      Clerk ID:
+                      사용자 유형:
                     </span>
-                    <code className="text-sm bg-gray-100 px-2 py-1 rounded">
-                      {userData.clerk_id}
-                    </code>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                      {userData.user_type === "vendor" ? "도매점" : "소매점"}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold min-w-[120px]">
+                      전화번호:
+                    </span>
+                    <span>{userData.phone || "없음"}</span>
                   </div>
                   <div className="flex gap-2 items-center">
-                    <span className="font-semibold min-w-[120px]">이름:</span>
+                    <span className="font-semibold min-w-[120px]">상호명:</span>
                     {editingName ? (
                       <div className="flex gap-2 flex-1">
                         <input
                           type="text"
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
-                          placeholder="새 이름 입력"
+                          placeholder="새 상호명 입력"
                           className="flex-1 px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <Button size="sm" onClick={updateName}>
@@ -328,13 +375,13 @@ export default function AuthTestPage() {
                       </div>
                     ) : (
                       <>
-                        <span>{userData.name}</span>
+                        <span>{userData.business_name}</span>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => {
                             setEditingName(true);
-                            setNewName(userData.name);
+                            setNewName(userData.business_name);
                           }}
                         >
                           수정

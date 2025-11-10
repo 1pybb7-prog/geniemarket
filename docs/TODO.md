@@ -68,16 +68,19 @@
 
 - [x] VS Code 또는 선호하는 IDE 설정
   > ✅ 완료됨
+  >
   > - `.vscode/settings.json`: 포맷터, ESLint, TypeScript 설정
   > - `.vscode/extensions.json`: 권장 확장 프로그램 목록
 - [x] ESLint, Prettier 설정 (팀 코딩 컨벤션)
   > ✅ 완료됨
+  >
   > - ESLint: `eslint.config.mjs` (Next.js + TypeScript 설정)
   > - Prettier: `.prettierrc` (코딩 스타일 설정)
   > - Prettier 스크립트: `pnpm format`, `pnpm format:check` 추가됨
   > - Prettier 패키지: devDependencies에 추가됨 (설치 필요: `pnpm install`)
 - [ ] 각자 로컬에서 `pnpm dev` 실행 확인
   > ⚠️ 다음 명령어로 개발 서버 실행:
+  >
   > ```bash
   > pnpm install  # 의존성 설치 (처음 한 번만)
   > pnpm dev       # 개발 서버 실행
@@ -93,10 +96,12 @@
   > ⚠️ 수동 작업 필요: [Supabase Dashboard](https://supabase.com/dashboard)에서 계정 생성
 - [ ] 새 프로젝트 생성 (프로젝트명: geniemarket 또는 price-compare-web)
   > ⚠️ 수동 작업 필요: Supabase Dashboard → New Project
+  >
   > - Region: `Northeast Asia (Seoul)` 선택 (한국 서비스용)
   > - Database Password: 안전한 비밀번호 생성
 - [ ] 프로젝트 URL 및 API 키 복사
   > ⚠️ 수동 작업 필요: Settings → API에서 다음 값 복사
+  >
   > - Project URL
   > - anon public key
   > - service_role secret key
@@ -108,6 +113,7 @@
 
 - [x] 모든 테이블 생성 (마이그레이션 파일 준비 완료)
   > ✅ 완료됨
+  >
   > - 마이그레이션 파일: `supabase/migrations/geniemarket.sql`
   > - 포함된 테이블:
   >   1. `users` - 사용자 정보 (도매점/소매점)
@@ -122,6 +128,7 @@
   >   - 뷰 (v_product_prices, v_lowest_prices, v_order_details)
   >
   > **마이그레이션 실행 방법:**
+  >
   > ```bash
   > # 방법 1: Supabase Dashboard에서 실행 (권장)
   > # 1. Supabase Dashboard → SQL Editor
@@ -136,6 +143,7 @@
 
 - [x] Storage 버킷 생성 스크립트 준비 완료
   > ✅ 완료됨
+  >
   > - 마이그레이션 파일: `supabase/migrations/setup_storage.sql`
   > - 버킷명: `uploads` (현재 프로젝트 설정)
   > - RLS 정책: Clerk 인증된 사용자만 자신의 폴더에 접근 가능
@@ -145,12 +153,14 @@
   > 필요시 버킷명을 변경하거나 별도 버킷을 생성할 수 있습니다.
 - [ ] Storage 버킷 생성 및 RLS 정책 적용
   > ⚠️ 수동 작업 필요 (방법 1: SQL Editor 사용 - 권장):
+  >
   > ```sql
   > -- supabase/migrations/setup_storage.sql 파일 내용을
   > -- Supabase Dashboard → SQL Editor에서 실행
   > ```
   >
   > ⚠️ 또는 방법 2: Dashboard에서 수동 생성:
+  >
   > 1. Supabase Dashboard → Storage
   > 2. "New bucket" 클릭
   > 3. Name: `uploads` 입력
@@ -159,6 +169,7 @@
   > 6. Settings → Policies에서 RLS 정책 추가 (setup_storage.sql 참고)
 - [ ] 이미지 업로드 테스트
   > ⚠️ 수동 작업 필요:
+  >
   > 1. 개발 서버 실행: `pnpm dev`
   > 2. 브라우저에서 `/storage-test` 페이지 접속
   > 3. Clerk 로그인 후 이미지 업로드 테스트
@@ -184,36 +195,92 @@
   NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
   ```
 
-- [ ] `middleware.ts` 생성 (Clerk 인증 미들웨어)
-- [ ] `app/layout.tsx`에 ClerkProvider 추가
-- [ ] 회원가입 페이지 라우트 생성 (`app/(auth)/sign-up/[[...sign-up]]/page.tsx`)
-- [ ] 로그인 페이지 라우트 생성 (`app/(auth)/sign-in/[[...sign-in]]/page.tsx`)
+- [x] `middleware.ts` 생성 (Clerk 인증 미들웨어)
+  > ✅ 완료됨 (이미 존재함)
+- [x] `app/layout.tsx`에 ClerkProvider 추가
+  > ✅ 완료됨 (이미 ClerkProvider가 추가되어 있음)
+- [x] 회원가입 페이지 라우트 생성 (`app/(auth)/sign-up/[[...sign-up]]/page.tsx`)
+  > ✅ 완료됨
+  >
+  > - 파일: `app/(auth)/sign-up/[[...sign-up]]/page.tsx`
+  > - Clerk의 SignUp 컴포넌트 사용
+  > - 한국어 UI 지원
+- [x] 로그인 페이지 라우트 생성 (`app/(auth)/sign-in/[[...sign-in]]/page.tsx`)
+  > ✅ 완료됨
+  >
+  > - 파일: `app/(auth)/sign-in/[[...sign-in]]/page.tsx`
+  > - Clerk의 SignIn 컴포넌트 사용
+  > - 한국어 UI 지원
 - [ ] 로그인/로그아웃 기능 테스트
+  > ⚠️ 수동 작업 필요:
+  >
+  > 1. 개발 서버 실행: `pnpm dev`
+  > 2. 브라우저에서 `/sign-in` 또는 `/sign-up` 접속
+  > 3. 회원가입 및 로그인 테스트
+  > 4. 로그아웃 기능 테스트
 
 #### Clerk 웹훅 설정
 
 - [ ] Clerk 대시보드에서 웹훅 엔드포인트 추가
-- [ ] `app/api/webhooks/clerk/route.ts` 생성
-- [ ] 사용자 생성 시 Supabase `users` 테이블에 자동 저장
+  > ⚠️ 수동 작업 필요:
+  >
+  > 1. [Clerk Dashboard](https://dashboard.clerk.com/) 접속
+  > 2. Webhooks 메뉴로 이동
+  > 3. "Add Endpoint" 클릭
+  > 4. Endpoint URL 입력: `https://your-domain.com/api/webhooks/clerk`
+  >    - 로컬 개발 시: ngrok 사용하여 터널링 필요
+  > 5. Subscribe to events 선택: `user.created`, `user.updated`, `user.deleted`
+  > 6. "Create" 클릭
+  > 7. Signing Secret 복사하여 `.env.local`의 `CLERK_WEBHOOK_SECRET`에 추가
+- [x] `app/api/webhooks/clerk/route.ts` 생성
+  > ✅ 완료됨
+  >
+  > - 파일: `app/api/webhooks/clerk/route.ts`
+  > - Svix를 사용한 웹훅 서명 검증
+  > - user.created, user.updated, user.deleted 이벤트 처리
+  > - 각 단계별 로그 출력
+- [x] 사용자 생성 시 Supabase `users` 테이블에 자동 저장
+  > ✅ 완료됨
+  >
+  > - user.created 이벤트 시 Supabase users 테이블에 자동 저장
+  > - user_type 기본값: "retailer" (나중에 프로필에서 변경 가능)
+  > - business_name 기본값: 사용자 이름 또는 이메일 (나중에 프로필에서 변경 가능)
+  > - user.updated 이벤트 시 Supabase에 반영
+  > - user.deleted 이벤트 시 Supabase에서 삭제
 - [ ] 웹훅 테스트 (새 사용자 가입 → Supabase 확인)
+  > ⚠️ 수동 작업 필요:
+  >
+  > 1. Clerk 대시보드에서 웹훅 엔드포인트 설정 완료
+  > 2. 개발 서버 실행: `pnpm dev`
+  > 3. ngrok 또는 다른 터널링 도구로 로컬 서버 노출
+  > 4. Clerk 대시보드에서 웹훅 URL을 터널링된 URL로 설정
+  > 5. 새 사용자 회원가입
+  > 6. Supabase 대시보드에서 users 테이블에 사용자 자동 저장 확인
+  > 7. 서버 콘솔에서 웹훅 로그 확인
 
 ### 🔑 API 키 발급 (Day 4)
 
 #### Google Gemini API
 
-- [ ] Google AI Studio 접속 (https://aistudio.google.com)
-- [ ] API 키 생성
-- [ ] 환경변수에 추가 (`GEMINI_API_KEY=xxxxx`)
-- [ ] 간단한 테스트 (브라우저에서 프롬프트 입력 확인)
+- [x] Google AI Studio 접속 (https://aistudio.google.com)
+- [x] API 키 생성
+- [x] 환경변수에 추가 (`GEMINI_API_KEY=xxxxx`)
+- [x] 간단한 테스트 (브라우저에서 프롬프트 입력 확인)
+  - ✅ `lib/gemini.ts` 생성 (상품명 표준화 유틸리티)
+  - ✅ `app/api/test/gemini/route.ts` 생성 (테스트 엔드포인트)
+  - 테스트 방법: `GET /api/test/gemini?name=청양고추 1키로` 또는 `POST /api/test/gemini`
 
 #### 공공데이터포털 API
 
-- [ ] 공공데이터포털 회원가입 (https://www.data.go.kr)
-- [ ] "한국농수산식품유통공사\_전국 공영도매시장 실시간 경매정보" 검색
-- [ ] 활용 신청 (승인까지 1-2일 소요)
-- [ ] API 키 발급 확인
-- [ ] 환경변수에 추가 (`PUBLIC_DATA_API_KEY=xxxxx`)
-- [ ] Postman으로 API 호출 테스트
+- [x] 공공데이터포털 회원가입 (https://www.data.go.kr)
+- [x] "한국농수산식품유통공사\_전국 공영도매시장 실시간 경매정보" 검색
+- [x] 활용 신청 (승인까지 1-2일 소요)
+- [x] API 키 발급 확인
+- [x] 환경변수에 추가 (`PUBLIC_DATA_API_KEY=xxxxx`)
+- [x] Postman으로 API 호출 테스트
+  - ✅ `lib/market-api.ts` 생성 (시세 조회 유틸리티)
+  - ✅ `app/api/test/market-api/route.ts` 생성 (테스트 엔드포인트)
+  - 테스트 방법: `GET /api/test/market-api?productName=청양고추` 또는 `POST /api/test/market-api`
 
 ### 🎨 기본 레이아웃 구조 (Day 5)
 
@@ -309,7 +376,6 @@
 #### TypeScript 타입 정의
 
 - [ ] `lib/types.ts` 생성
-
   - User, ProductRaw, ProductStandard, Order 등 타입 정의
 
   ```typescript
