@@ -34,128 +34,136 @@
 
 #### 패키지 설치
 
-- [ ] 필수 패키지 설치
+- [x] 필수 패키지 설치
   ```bash
-  npm install @clerk/nextjs @supabase/supabase-js
-  npm install @google/generative-ai
-  npm install lucide-react class-variance-authority clsx tailwind-merge
+  pnpm add @google/generative-ai
   ```
-- [ ] shadcn/ui 초기화
+  > ✅ 완료됨
+  >
+  > - @clerk/nextjs, @supabase/supabase-js: 이미 설치됨
+  > - lucide-react, class-variance-authority, clsx, tailwind-merge: 이미 설치됨
+  > - @google/generative-ai: package.json에 추가됨 (pnpm install 필요)
+- [x] shadcn/ui 초기화
   ```bash
   npx shadcn-ui@latest init
   ```
-- [ ] 기본 컴포넌트 설치 (button, card, dialog, input, select, skeleton, toast)
+  > ✅ 완료됨 (components.json 존재)
+- [ ] 기본 컴포넌트 설치 (button, card, dialog, input, select, skeleton, sonner)
   ```bash
-  npx shadcn-ui@latest add button card dialog input select skeleton toast
+  pnpx shadcn@latest add card select skeleton sonner --yes
   ```
+  > ⚠️ pnpm 가상 저장소 문제로 자동 설치 실패. 다음 명령어를 직접 실행하세요:
+  >
+  > ```bash
+  > # 먼저 의존성 재설치
+  > pnpm install
+  >
+  > # 그 다음 shadcn/ui 컴포넌트 설치
+  > pnpx shadcn@latest add card select skeleton sonner --yes
+  > ```
+  >
+  > 참고: toast는 deprecated되었으므로 sonner를 사용합니다.
 
 #### 개발 환경 설정
 
-- [ ] VS Code 또는 선호하는 IDE 설정
-- [ ] ESLint, Prettier 설정 (팀 코딩 컨벤션)
-- [ ] 각자 로컬에서 `npm run dev` 실행 확인
+- [x] VS Code 또는 선호하는 IDE 설정
+  > ✅ 완료됨
+  > - `.vscode/settings.json`: 포맷터, ESLint, TypeScript 설정
+  > - `.vscode/extensions.json`: 권장 확장 프로그램 목록
+- [x] ESLint, Prettier 설정 (팀 코딩 컨벤션)
+  > ✅ 완료됨
+  > - ESLint: `eslint.config.mjs` (Next.js + TypeScript 설정)
+  > - Prettier: `.prettierrc` (코딩 스타일 설정)
+  > - Prettier 스크립트: `pnpm format`, `pnpm format:check` 추가됨
+  > - Prettier 패키지: devDependencies에 추가됨 (설치 필요: `pnpm install`)
+- [ ] 각자 로컬에서 `pnpm dev` 실행 확인
+  > ⚠️ 다음 명령어로 개발 서버 실행:
+  > ```bash
+  > pnpm install  # 의존성 설치 (처음 한 번만)
+  > pnpm dev       # 개발 서버 실행
+  > ```
 - [ ] 브라우저에서 localhost:3000 접속 확인
+  > ⚠️ 개발 서버 실행 후 브라우저에서 http://localhost:3000 접속하여 확인
 
 ### 🗄️ Supabase 세팅 (Day 3)
 
 #### Supabase 프로젝트 생성
 
 - [ ] Supabase 계정 생성 (1명 대표)
-- [ ] 새 프로젝트 생성 (프로젝트명: price-compare-web)
+  > ⚠️ 수동 작업 필요: [Supabase Dashboard](https://supabase.com/dashboard)에서 계정 생성
+- [ ] 새 프로젝트 생성 (프로젝트명: geniemarket 또는 price-compare-web)
+  > ⚠️ 수동 작업 필요: Supabase Dashboard → New Project
+  > - Region: `Northeast Asia (Seoul)` 선택 (한국 서비스용)
+  > - Database Password: 안전한 비밀번호 생성
 - [ ] 프로젝트 URL 및 API 키 복사
+  > ⚠️ 수동 작업 필요: Settings → API에서 다음 값 복사
+  > - Project URL
+  > - anon public key
+  > - service_role secret key
+  > - `.env.local` 파일에 저장
 - [ ] 팀원들에게 Supabase 대시보드 접근 권한 공유
+  > ⚠️ 수동 작업 필요: Settings → Team Members에서 팀원 추가
 
 #### 데이터베이스 테이블 생성
 
-- [ ] `users` 테이블 생성
-
-  ```sql
-  CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    user_type TEXT NOT NULL CHECK (user_type IN ('vendor', 'retailer')),
-    business_name TEXT NOT NULL,
-    phone TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
-
-- [ ] `products_raw` 테이블 생성
-
-  ```sql
-  CREATE TABLE products_raw (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vendor_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    original_name TEXT NOT NULL,
-    price INTEGER NOT NULL,
-    unit TEXT NOT NULL,
-    stock INTEGER DEFAULT 0,
-    image_url TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
-
-- [ ] `products_standard` 테이블 생성
-
-  ```sql
-  CREATE TABLE products_standard (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    standard_name TEXT UNIQUE NOT NULL,
-    category TEXT,
-    unit TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
-
-- [ ] `product_mapping` 테이블 생성
-
-  ```sql
-  CREATE TABLE product_mapping (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    raw_product_id UUID REFERENCES products_raw(id) ON DELETE CASCADE,
-    standard_product_id UUID REFERENCES products_standard(id) ON DELETE CASCADE,
-    is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
-
-- [ ] `market_prices` 테이블 생성
-
-  ```sql
-  CREATE TABLE market_prices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    standard_product_id UUID REFERENCES products_standard(id) ON DELETE CASCADE,
-    market_name TEXT NOT NULL,
-    price INTEGER NOT NULL,
-    grade TEXT,
-    date DATE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
-
-- [ ] `orders` 테이블 생성
-  ```sql
-  CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    buyer_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    vendor_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    product_id UUID REFERENCES products_raw(id) ON DELETE CASCADE,
-    quantity INTEGER NOT NULL,
-    total_price INTEGER NOT NULL,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  ```
+- [x] 모든 테이블 생성 (마이그레이션 파일 준비 완료)
+  > ✅ 완료됨
+  > - 마이그레이션 파일: `supabase/migrations/geniemarket.sql`
+  > - 포함된 테이블:
+  >   1. `users` - 사용자 정보 (도매점/소매점)
+  >   2. `products_raw` - 도매점이 등록한 원본 상품
+  >   3. `products_standard` - AI가 정리한 표준 상품
+  >   4. `product_mapping` - 원본-표준 상품 매핑
+  >   5. `market_prices` - 공영도매시장 시세
+  >   6. `orders` - 주문 정보
+  > - 추가 기능:
+  >   - 인덱스 (검색 성능 최적화)
+  >   - 트리거 함수 (updated_at 자동 업데이트)
+  >   - 뷰 (v_product_prices, v_lowest_prices, v_order_details)
+  >
+  > **마이그레이션 실행 방법:**
+  > ```bash
+  > # 방법 1: Supabase Dashboard에서 실행 (권장)
+  > # 1. Supabase Dashboard → SQL Editor
+  > # 2. supabase/migrations/geniemarket.sql 파일 내용 복사
+  > # 3. 붙여넣기 후 Run 클릭
+  >
+  > # 방법 2: Supabase CLI 사용 (선택 사항)
+  > # supabase db push
+  > ```
 
 #### Supabase Storage 설정
 
-- [ ] Storage 버킷 생성 (`product-images`)
-- [ ] 버킷 공개 설정 (Public bucket)
+- [x] Storage 버킷 생성 스크립트 준비 완료
+  > ✅ 완료됨
+  > - 마이그레이션 파일: `supabase/migrations/setup_storage.sql`
+  > - 버킷명: `uploads` (현재 프로젝트 설정)
+  > - RLS 정책: Clerk 인증된 사용자만 자신의 폴더에 접근 가능
+  > - 경로 구조: `{clerk_user_id}/{filename}`
+  >
+  > **참고**: PRD에서는 `product-images` 버킷을 언급하지만, 현재 프로젝트는 `uploads` 버킷을 사용합니다.
+  > 필요시 버킷명을 변경하거나 별도 버킷을 생성할 수 있습니다.
+- [ ] Storage 버킷 생성 및 RLS 정책 적용
+  > ⚠️ 수동 작업 필요 (방법 1: SQL Editor 사용 - 권장):
+  > ```sql
+  > -- supabase/migrations/setup_storage.sql 파일 내용을
+  > -- Supabase Dashboard → SQL Editor에서 실행
+  > ```
+  >
+  > ⚠️ 또는 방법 2: Dashboard에서 수동 생성:
+  > 1. Supabase Dashboard → Storage
+  > 2. "New bucket" 클릭
+  > 3. Name: `uploads` 입력
+  > 4. Public bucket: ❌ 체크 해제 (Private bucket, RLS 정책 사용)
+  > 5. "Create bucket" 클릭
+  > 6. Settings → Policies에서 RLS 정책 추가 (setup_storage.sql 참고)
 - [ ] 이미지 업로드 테스트
+  > ⚠️ 수동 작업 필요:
+  > 1. 개발 서버 실행: `pnpm dev`
+  > 2. 브라우저에서 `/storage-test` 페이지 접속
+  > 3. Clerk 로그인 후 이미지 업로드 테스트
+  > 4. 업로드된 파일 목록 확인
+  > 5. 파일 URL 확인 및 접근 테스트
 
 ### 🔐 Clerk 세팅 (Day 4)
 
