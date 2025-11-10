@@ -19,7 +19,7 @@
  * - zod: 유효성 검사
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useUser, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -51,7 +51,8 @@ const completeSignUpSchema = z.object({
 
 type CompleteSignUpForm = z.infer<typeof completeSignUpSchema>;
 
-export default function CompleteSignUpPage() {
+// useSearchParams를 사용하는 내부 컴포넌트
+function CompleteSignUpFormContent() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
@@ -288,5 +289,22 @@ export default function CompleteSignUpPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Suspense로 감싼 메인 컴포넌트
+export default function CompleteSignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg">로딩 중...</p>
+          </div>
+        </div>
+      }
+    >
+      <CompleteSignUpFormContent />
+    </Suspense>
   );
 }
