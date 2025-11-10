@@ -9,13 +9,26 @@
  * 1. 이메일/비밀번호 로그인
  * 2. 소셜 로그인 (Google, GitHub 등 - Clerk 대시보드에서 설정)
  * 3. 비밀번호 찾기
+ * 4. 역할(role) 쿼리 파라미터를 받아서 회원가입 페이지로 전달
  *
  * @see {@link https://clerk.com/docs/components/authentication/sign-in} - Clerk SignIn 컴포넌트 문서
  */
 
 import { SignIn } from "@clerk/nextjs";
 
-export default function SignInPage() {
+interface SignInPageProps {
+  searchParams: Promise<{ role?: string }>;
+}
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const params = await searchParams;
+  const role = params.role;
+
+  console.log("[SignInPage] 로그인 페이지 렌더링, 역할:", role);
+
+  // 역할이 있으면 회원가입 URL에 전달
+  const signUpUrl = role ? `/sign-up?role=${role}` : "/sign-up";
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-12">
       <SignIn
@@ -27,10 +40,9 @@ export default function SignInPage() {
         }}
         routing="path"
         path="/sign-in"
-        signUpUrl="/sign-up"
+        signUpUrl={signUpUrl}
         afterSignInUrl="/"
       />
     </div>
   );
 }
-

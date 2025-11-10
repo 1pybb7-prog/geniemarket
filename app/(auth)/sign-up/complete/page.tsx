@@ -21,7 +21,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser, useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useClerkSupabaseClient } from "@/lib/supabase/clerk-client";
+import { UserType } from "@/lib/types";
 
 // 유효성 검사 스키마
 const completeSignUpSchema = z.object({
@@ -54,9 +55,13 @@ export default function CompleteSignUpPage() {
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useClerkSupabaseClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // URL에서 역할 정보 가져오기
+  const roleFromUrl = searchParams.get("role") as UserType | null;
 
   const {
     register,
@@ -67,13 +72,24 @@ export default function CompleteSignUpPage() {
   } = useForm<CompleteSignUpForm>({
     resolver: zodResolver(completeSignUpSchema),
     defaultValues: {
-      userType: undefined,
+      userType:
+        roleFromUrl && ["vendor", "retailer"].includes(roleFromUrl)
+          ? roleFromUrl
+          : undefined,
       businessName: "",
       phone: "",
     },
   });
 
   const userType = watch("userType");
+
+  // URL에서 역할 정보가 있으면 기본값으로 설정
+  useEffect(() => {
+    if (roleFromUrl && ["vendor", "retailer"].includes(roleFromUrl)) {
+      console.log("[CompleteSignUpPage] URL에서 역할 정보 받음:", roleFromUrl);
+      setValue("userType", roleFromUrl as "vendor" | "retailer");
+    }
+  }, [roleFromUrl, setValue]);
 
   // 회원가입이 완료되지 않은 경우 리다이렉트
   useEffect(() => {

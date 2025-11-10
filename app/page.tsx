@@ -1,13 +1,20 @@
 /**
- * @file page.tsx
- * @description 홈 페이지
+ * @file app/page.tsx
+ * @description 랜딩 페이지 / 홈 페이지
  *
- * 소매점용 홈 페이지입니다.
- * 최근 등록된 상품, 인기 상품, 공영시장 시세 요약을 표시합니다.
+ * 이 페이지는 사용자 상태에 따라 다른 내용을 표시합니다:
+ * - 로그인하지 않은 사용자: 도매점/소매점 선택 랜딩 페이지
+ * - 로그인한 사용자: 메인 홈 페이지 (메인 레이아웃 적용)
+ *
+ * 주요 기능:
+ * 1. 로그인한 사용자에게는 메인 홈 페이지를 메인 레이아웃과 함께 렌더링
+ * 2. 로그인하지 않은 사용자에게 도매점/소매점 선택 버튼 제공
+ * 3. 선택한 역할을 쿼리 파라미터로 전달하여 로그인 페이지로 이동
  */
 
-import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -16,8 +23,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Package, TrendingUp, BarChart3 } from "lucide-react";
+import { Header } from "@/components/layout/Header";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileNav } from "@/components/layout/MobileNav";
 
-export default function HomePage() {
+// 메인 홈 페이지 내용 컴포넌트
+function HomePageContent() {
   console.log("[HomePage] 홈 페이지 렌더링");
 
   return (
@@ -156,6 +167,60 @@ export default function HomePage() {
           </Card>
         </div>
       </section>
+    </div>
+  );
+}
+
+export default async function LandingPage() {
+  console.log("[LandingPage] 랜딩 페이지 렌더링");
+
+  // 로그인한 사용자는 메인 홈 페이지를 메인 레이아웃과 함께 렌더링
+  const { userId } = await auth();
+  if (userId) {
+    console.log("[LandingPage] 로그인한 사용자 감지, 메인 홈 페이지 렌더링");
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
+            <HomePageContent />
+          </main>
+        </div>
+        <MobileNav />
+      </div>
+    );
+  }
+
+  // 로그인하지 않은 사용자에게 랜딩 페이지 표시
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12">
+      <div className="w-full max-w-md space-y-8 text-center">
+        {/* 제목 */}
+        <div className="space-y-2">
+          <h1 className="text-5xl font-bold text-blue-600">OSCM</h1>
+          <p className="text-lg text-gray-600">
+            AI 기반 공급망 최적화 B2B 플랫폼
+          </p>
+        </div>
+
+        {/* 역할 선택 버튼 */}
+        <div className="space-y-4">
+          <Link href="/sign-in?role=retailer" className="block">
+            <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 h-12 text-base font-medium">
+              소매점으로 시작하기
+            </Button>
+          </Link>
+          <Link href="/sign-in?role=vendor" className="block">
+            <Button
+              variant="outline"
+              className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 h-12 text-base font-medium"
+            >
+              도매점으로 시작하기
+            </Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

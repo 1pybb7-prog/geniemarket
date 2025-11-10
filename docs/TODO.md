@@ -311,6 +311,10 @@
   - Header + Sidebar + Main Content 구조
   - 반응형 레이아웃 (Desktop: Sidebar 표시, Mobile: 하단 네비)
 - [x] Tailwind CSS로 반응형 스타일링
+- [x] `app/page.tsx` 생성 (랜딩 페이지 / 홈 페이지 통합)
+  - 로그인하지 않은 사용자: 랜딩 페이지 (도매점/소매점 선택)
+  - 로그인한 사용자: 메인 홈 페이지 (메인 레이아웃 적용)
+  - 경로 충돌 해결: `app/(main)/page.tsx` 삭제
 - [ ] 브라우저에서 레이아웃 확인 (Desktop, Tablet, Mobile)
 
 ### 📚 Git 협업 세팅 (Day 5)
@@ -337,6 +341,13 @@
 - [ ] Gemini API 키 발급 완료
 - [ ] 공공 API 키 발급 및 테스트 완료
 - [ ] 기본 레이아웃 화면 확인 (Header, Sidebar, MobileNav)
+- [x] 랜딩 페이지 / 홈 페이지 통합 완료
+  > ✅ 완료됨
+  >
+  > - `app/page.tsx`에서 로그인 상태에 따라 조건부 렌더링
+  > - 로그인하지 않은 사용자: 랜딩 페이지 (도매점/소매점 선택)
+  > - 로그인한 사용자: 메인 홈 페이지 (메인 레이아웃 적용)
+  > - 경로 충돌 해결: `app/(main)/page.tsx` 삭제
 - [ ] Git 협업 환경 구축 완료
 
 ---
