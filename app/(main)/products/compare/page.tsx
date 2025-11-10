@@ -29,7 +29,7 @@
  * @see {@link docs/TODO.md} - TODO 706-746 라인
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PriceCompareCard } from "@/components/products/PriceCompareCard";
@@ -68,7 +68,8 @@ interface CompareData {
   average_market_price: number;
 }
 
-export default function ComparePage() {
+// useSearchParams를 사용하는 내부 컴포넌트
+function ComparePageContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -287,5 +288,20 @@ export default function ComparePage() {
         vendorPrice={selectedVendorPrice}
       />
     </div>
+  );
+}
+
+// Suspense로 감싼 메인 컴포넌트
+export default function ComparePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <ComparePageContent />
+    </Suspense>
   );
 }
