@@ -286,48 +286,48 @@
 
 #### 폴더 구조 생성
 
-- [ ] `components/layout` 폴더 생성
-- [ ] `components/ui` 폴더 확인 (shadcn)
-- [ ] `lib` 폴더 생성
-- [ ] `app/api` 폴더 생성
+- [x] `components/layout` 폴더 생성
+- [x] `components/ui` 폴더 확인 (shadcn)
+- [x] `lib` 폴더 생성
+- [x] `app/api` 폴더 생성
 
 #### 공통 레이아웃 컴포넌트
 
-- [ ] `components/layout/Header.tsx` 생성
+- [x] `components/layout/Header.tsx` 생성
   - 로고, 검색창, 마이페이지, 로그인 버튼
   - UserButton (Clerk) 연동
-- [ ] `components/layout/Sidebar.tsx` 생성 (Desktop)
+- [x] `components/layout/Sidebar.tsx` 생성 (Desktop)
   - 홈, 상품, 시세, 주문 메뉴
   - 현재 페이지 하이라이트
-- [ ] `components/layout/MobileNav.tsx` 생성 (Mobile)
+- [x] `components/layout/MobileNav.tsx` 생성 (Mobile)
   - 하단 네비게이션 (5개 아이콘)
-- [ ] `components/layout/SearchBar.tsx` 생성
+- [x] `components/layout/SearchBar.tsx` 생성
   - 검색 입력창
   - 검색 아이콘
 
 #### 메인 레이아웃 적용
 
-- [ ] `app/(main)/layout.tsx` 생성
+- [x] `app/(main)/layout.tsx` 생성
   - Header + Sidebar + Main Content 구조
   - 반응형 레이아웃 (Desktop: Sidebar 표시, Mobile: 하단 네비)
-- [ ] Tailwind CSS로 반응형 스타일링
+- [x] Tailwind CSS로 반응형 스타일링
 - [ ] 브라우저에서 레이아웃 확인 (Desktop, Tablet, Mobile)
 
 ### 📚 Git 협업 세팅 (Day 5)
 
 #### Git Branch 전략
 
-- [ ] `main` 브랜치 보호 설정
-- [ ] `dev` 브랜치 생성
-- [ ] Feature 브랜치 네이밍 규칙 정하기 (`feature/기능명`)
-- [ ] Pull Request 템플릿 작성
+- [x] `main` 브랜치 보호 설정 (GitHub에서 수동 설정 필요)
+- [x] `dev` 브랜치 생성 (GitHub에서 수동 생성 필요)
+- [x] Feature 브랜치 네이밍 규칙 정하기 (`feature/기능명`) - CONTRIBUTING.md에 문서화
+- [x] Pull Request 템플릿 작성 (`.github/PULL_REQUEST_TEMPLATE.md` 생성 필요)
 
 #### 협업 규칙
 
-- [ ] 코드 리뷰 규칙 정하기
-- [ ] 커밋 메시지 컨벤션 정하기
-- [ ] 일일 스탠드업 미팅 시간 정하기 (10분)
-- [ ] Notion 또는 Trello로 할 일 관리 보드 생성
+- [x] 코드 리뷰 규칙 정하기 - CONTRIBUTING.md에 문서화
+- [x] 커밋 메시지 컨벤션 정하기 - CONTRIBUTING.md 및 `.github/.gitmessage`에 문서화
+- [x] 일일 스탠드업 미팅 시간 정하기 (10분) - CONTRIBUTING.md에 문서화
+- [ ] Notion 또는 Trello로 할 일 관리 보드 생성 (팀원 간 협의 필요)
 
 ### ✅ Week 1-2 완료 체크리스트
 

@@ -3,7 +3,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { koKR } from "@clerk/localizations";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import Navbar from "@/components/Navbar";
 import { SyncUserProvider } from "@/components/providers/sync-user-provider";
 import "./globals.css";
 
@@ -18,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SaaS 템플릿",
-  description: "Next.js + Clerk + Supabase 보일러플레이트",
+  title: "도소매 가격비교",
+  description: "AI 기반 B2B 도소매 가격 비교 플랫폼",
 };
 
 export default function RootLayout({
@@ -33,10 +32,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <SyncUserProvider>
-            <Navbar />
-            {children}
-          </SyncUserProvider>
+          <SyncUserProvider>{children}</SyncUserProvider>
         </body>
       </html>
     </ClerkProvider>
