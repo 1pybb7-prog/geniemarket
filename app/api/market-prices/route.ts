@@ -67,22 +67,34 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("🔍 조회할 상품명:", productName);
+    console.log(
+      "🔑 API 키 확인:",
+      process.env.PUBLIC_DATA_API_KEY ? "✅ 설정됨" : "❌ 없음",
+    );
 
-    // 공공 API 호출 (타임아웃 5초)
+    // 공공 API 호출 (타임아웃 30초 - 여러 카테고리 시도하므로 시간 필요)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     let apiMarketPrices: ApiMarketPrice[] = [];
 
     try {
+      console.log("📤 getMarketPrices 함수 호출 시작...");
       apiMarketPrices = await getMarketPrices(productName);
       clearTimeout(timeoutId);
+      console.log(
+        `📊 getMarketPrices 결과: ${apiMarketPrices.length}개 시세 조회됨`,
+      );
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
-        console.warn("⚠️ API 호출 타임아웃 (5초 초과)");
+        console.warn("⚠️ API 호출 타임아웃 (30초 초과)");
       } else {
         console.error("❌ 공공 API 호출 실패:", error);
+        console.error(
+          "❌ 에러 상세:",
+          error instanceof Error ? error.stack : error,
+        );
       }
       // 에러 발생 시 빈 배열 반환
       apiMarketPrices = [];
@@ -147,10 +159,20 @@ export async function GET(request: NextRequest) {
     });
     console.groupEnd();
 
+    // API 응답을 클라이언트용 형식으로 변환 (marketName -> market_name)
+    const clientMarketPrices = apiMarketPrices.map((price) => ({
+      market_name: price.marketName,
+      price: price.price,
+      grade: price.grade,
+      date: price.date,
+      product_name: price.productName,
+      unit: price.unit,
+    }));
+
     return NextResponse.json({
-      prices: apiMarketPrices,
+      prices: clientMarketPrices,
       averagePrice,
-      count: apiMarketPrices.length,
+      count: clientMarketPrices.length,
     });
   } catch (error) {
     console.error("❌ 공영시장 시세 조회 API 에러:", error);
