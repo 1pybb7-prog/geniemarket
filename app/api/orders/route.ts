@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
+import { hasUserType } from "@/lib/types";
 import type { Order } from "@/lib/types";
 
 /**
@@ -63,8 +64,9 @@ export async function GET(request: NextRequest) {
     // 쿼리 파라미터 추출
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
+    const limit = parseInt(searchParams.get("limit") || "0", 10);
 
-    console.log("📋 쿼리 파라미터:", { type });
+    console.log("📋 쿼리 파라미터:", { type, limit });
 
     // Supabase 클라이언트 생성
     const supabase = getServiceRoleClient();
@@ -85,17 +87,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userType = (type as "retailer" | "vendor") || userData.user_type;
+    const requestedType = (type as "retailer" | "vendor") || userData.user_type;
+    const userType = userData.user_type;
     console.log("👤 사용자 유형:", userType);
+    console.log("👤 요청된 유형:", requestedType);
 
     let query = supabase.from("orders").select("*", { count: "exact" });
 
     // 소매점(retailer)인 경우: 본인의 주문만 조회
-    if (userType === "retailer") {
+    if (
+      hasUserType(userType, "retailer") &&
+      (requestedType === "retailer" || !type)
+    ) {
       query = query.eq("buyer_id", userId);
     }
     // 도매점(vendor)인 경우: 본인이 판매한 상품의 주문만 조회
-    else if (userType === "vendor") {
+    else if (
+      hasUserType(userType, "vendor") &&
+      (requestedType === "vendor" || !type)
+    ) {
       // products_raw 테이블에서 본인의 상품 ID 목록 가져오기
       const { data: myProducts, error: productsError } = await supabase
         .from("products_raw")
@@ -130,6 +140,11 @@ export async function GET(request: NextRequest) {
 
     // 최신 순으로 정렬
     query = query.order("created_at", { ascending: false });
+
+    // limit이 지정된 경우 적용
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
 
     const { data: orders, error: ordersError, count } = await query;
 

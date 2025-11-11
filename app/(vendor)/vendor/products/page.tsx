@@ -91,7 +91,7 @@ export default function VendorProductsPage() {
         setLoading(true);
         console.group("📦 상품 목록 조회 시작");
 
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/products?type=vendor");
         const result = await response.json();
 
         if (!response.ok) {
@@ -214,14 +214,26 @@ export default function VendorProductsPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 헤더 */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <Package className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-bold">내 상품 목록</h1>
         </div>
-        <Link href="/vendor/products/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />새 상품 등록
+        <p className="text-gray-600 mb-4">
+          등록한 상품을 관리하고 새로운 상품을 등록할 수 있습니다.
+        </p>
+      </div>
+
+      {/* 상품 등록 버튼 - 눈에 띄게 배치 */}
+      <div className="mb-6">
+        <Link
+          href="/vendor/products/new"
+          onClick={() => {
+            console.log("📦 상품 등록 페이지로 이동");
+          }}
+        >
+          <Button size="lg" className="w-full sm:w-auto">
+            <Plus className="w-5 h-5 mr-2" />새 상품 등록하기
           </Button>
         </Link>
       </div>
@@ -233,8 +245,8 @@ export default function VendorProductsPage() {
             <Package className="w-16 h-16 text-gray-400 mb-4" />
             <p className="text-gray-600 mb-4">등록된 상품이 없습니다.</p>
             <Link href="/vendor/products/new">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />첫 상품 등록하기
+              <Button size="lg">
+                <Plus className="w-5 h-5 mr-2" />첫 상품 등록하기
               </Button>
             </Link>
           </CardContent>

@@ -13,6 +13,7 @@
  */
 
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -26,6 +27,10 @@ import { Package, TrendingUp, BarChart3 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { VendorSidebar } from "@/components/layout/VendorSidebar";
+import { VendorMobileNav } from "@/components/layout/VendorMobileNav";
+import { createClerkSupabaseClient } from "@/lib/supabase/server";
+import { hasUserType, getUserTypes } from "@/lib/types";
 
 // 메인 홈 페이지 내용 컴포넌트
 function HomePageContent() {
@@ -178,16 +183,51 @@ export default async function LandingPage() {
   const { userId } = await auth();
   if (userId) {
     console.log("[LandingPage] 로그인한 사용자 감지, 메인 홈 페이지 렌더링");
+
+    // 닉네임 확인 - 닉네임이 없으면 닉네임 입력 페이지로 리다이렉트
+    const supabase = createClerkSupabaseClient();
+    const { data: userData, error } = await supabase
+      .from("users")
+      .select("nickname, user_type")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ 사용자 정보 조회 실패:", error);
+    } else {
+      // 닉네임이 없거나 user_type이 없으면 추가 정보 입력 페이지로 리다이렉트
+      if (!userData?.nickname || !userData?.user_type) {
+        console.log(
+          "⚠️ 닉네임 또는 회원 유형이 없습니다. 추가 정보 입력 페이지로 리다이렉트합니다.",
+        );
+        redirect("/sign-up/complete");
+      }
+    }
+
+    // 사용자 타입에 따라 다른 사이드바 표시
+    const userType = userData?.user_type || "";
+    const isVendor = hasUserType(userType, "vendor");
+    const isRetailer = hasUserType(userType, "retailer");
+    const userTypes = getUserTypes(userType);
+
+    console.log("👤 사용자 타입:", userType);
+    console.log("👤 도매점 여부:", isVendor);
+    console.log("👤 소매점 여부:", isRetailer);
+    console.log("👤 사용 가능한 유형:", userTypes);
+
+    // 둘 다인 경우 도매점 사이드바를 기본으로 표시 (나중에 역할 전환 기능 추가 가능)
+    const showVendorSidebar = isVendor;
+
     return (
       <div className="flex flex-col min-h-screen">
         <Header />
         <div className="flex flex-1">
-          <Sidebar />
+          {showVendorSidebar ? <VendorSidebar /> : <Sidebar />}
           <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
             <HomePageContent />
           </main>
         </div>
-        <MobileNav />
+        {showVendorSidebar ? <VendorMobileNav /> : <MobileNav />}
       </div>
     );
   }

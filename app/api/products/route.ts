@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { createClerkSupabaseClient } from "@/lib/supabase/server";
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
+import { hasUserType } from "@/lib/types";
 import { ProductFormData } from "@/components/products/ProductForm";
 import type { ProductRaw } from "@/lib/types";
 
@@ -102,11 +103,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const userType = (type as "vendor" | "retailer") || userData.user_type;
+    const requestedType = (type as "vendor" | "retailer") || userData.user_type;
+    const userType = userData.user_type;
     console.log("👤 사용자 유형:", userType);
+    console.log("👤 요청된 유형:", requestedType);
 
     // 도매점(vendor)인 경우: 본인 상품 목록 조회
-    if (userType === "vendor") {
+    if (hasUserType(userType, "vendor") && (requestedType === "vendor" || !type)) {
       // 도매점의 상품 목록 조회 (표준화 결과 포함)
       const { data: products, error: productsError } = await supabase
         .from("products_raw")
@@ -308,9 +311,9 @@ export async function POST(request: Request) {
 
     console.log("👤 사용자 정보:", userData);
 
-    // 도매점(vendor)만 등록 가능
-    if (userData.user_type !== "vendor") {
-      console.error("❌ 도매점이 아닌 사용자:", userData.user_type);
+    // 도매점(vendor) 권한이 없으면 등록 불가
+    if (!hasUserType(userData.user_type, "vendor")) {
+      console.error("❌ 도매점 권한이 없는 사용자:", userData.user_type);
       console.groupEnd();
       return NextResponse.json(
         { error: "도매점만 상품을 등록할 수 있습니다." },

@@ -19,10 +19,58 @@
 
 /**
  * 사용자 유형
- * - vendor: 도매점
- * - retailer: 소매점
+ * - vendor: 도매점만
+ * - retailer: 소매점만
+ * - vendor/retailer: 도매점과 소매점 둘 다
  */
-export type UserType = "vendor" | "retailer";
+export type UserType = "vendor" | "retailer" | "vendor/retailer";
+
+/**
+ * 사용자 유형 체크 헬퍼 함수
+ * @param userType - 사용자 유형 문자열
+ * @param type - 확인할 유형
+ * @returns 해당 유형을 가지고 있는지 여부
+ */
+export function hasUserType(
+  userType: string,
+  type: "vendor" | "retailer",
+): boolean {
+  return userType === type || userType === "vendor/retailer";
+}
+
+/**
+ * 사용자 유형을 배열로 변환
+ * @param userType - 사용자 유형 문자열
+ * @returns 유형 배열
+ */
+export function getUserTypes(
+  userType: string,
+): ("vendor" | "retailer")[] {
+  if (userType === "vendor/retailer") {
+    return ["vendor", "retailer"];
+  }
+  if (userType === "vendor" || userType === "retailer") {
+    return [userType as "vendor" | "retailer"];
+  }
+  return [];
+}
+
+/**
+ * 사용자 유형 배열을 문자열로 변환
+ * @param types - 유형 배열
+ * @returns 유형 문자열
+ */
+export function combineUserTypes(
+  types: ("vendor" | "retailer")[],
+): UserType {
+  if (types.length === 2) {
+    return "vendor/retailer";
+  }
+  if (types.length === 1) {
+    return types[0];
+  }
+  throw new Error("최소 하나의 유형이 필요합니다.");
+}
 
 /**
  * 주문 상태
@@ -43,6 +91,8 @@ export interface User {
   email: string;
   /** 사용자 유형 (도매점/소매점) */
   user_type: UserType;
+  /** 닉네임 (중복 불가, 2-20자) */
+  nickname?: string;
   /** 상호명 */
   business_name: string;
   /** 전화번호 (선택 사항) */

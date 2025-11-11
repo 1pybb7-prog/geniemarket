@@ -41,6 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Package, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { hasUserType } from "@/lib/types";
 
 interface UserData {
   id: string;
@@ -71,25 +72,45 @@ export default function NewProductPage() {
         console.group("👤 사용자 타입 확인 시작");
 
         // Supabase에서 사용자 정보 조회
+        console.log("🔍 사용자 ID로 조회:", user.id);
         const { data: userData, error: userError } = await supabase
           .from("users")
-          .select("id, user_type")
+          .select("id, user_type, email, business_name")
           .eq("id", user.id)
           .single();
 
-        if (userError || !userData) {
+        if (userError) {
           console.error("❌ 사용자 정보 조회 실패:", userError);
+          console.error("에러 코드:", userError.code);
+          console.error("에러 메시지:", userError.message);
+          console.error("에러 상세:", userError.details);
           toast.error("사용자 정보를 찾을 수 없습니다.");
           router.push("/sign-in");
           return;
         }
 
-        console.log("✅ 사용자 정보 조회 성공:", userData);
+        if (!userData) {
+          console.error("❌ 사용자 데이터가 없습니다.");
+          toast.error("사용자 정보를 찾을 수 없습니다.");
+          router.push("/sign-in");
+          return;
+        }
+
+        console.log(
+          "✅ 사용자 정보 조회 성공:",
+          JSON.stringify(userData, null, 2),
+        );
+        console.log("👤 조회된 user_type:", userData.user_type);
+        console.log("📧 조회된 email:", userData.email);
+        console.log("🏢 조회된 business_name:", userData.business_name);
+
         setUserType(userData.user_type);
 
-        // 도매점(vendor)이 아니면 접근 불가
-        if (userData.user_type !== "vendor") {
+        // 도매점(vendor) 권한이 없으면 접근 불가
+        if (!hasUserType(userData.user_type, "vendor")) {
           console.error("❌ 권한 없음: 도매점만 접근 가능합니다.");
+          console.error("현재 user_type:", userData.user_type);
+          console.error("예상: vendor 또는 vendor/retailer");
           toast.error("도매점만 상품을 등록할 수 있습니다.");
           router.push("/");
           return;

@@ -55,23 +55,79 @@ export async function POST() {
     console.log("📞 전화번호:", phone);
     console.log("👤 이름:", fullName);
 
+    // Clerk publicMetadata에서 사용자 정보 가져오기
+    const publicMetadata = clerkUser.publicMetadata as {
+      user_type?: "vendor" | "retailer" | "vendor/retailer";
+      business_name?: string;
+      nickname?: string;
+      phone?: string;
+    } | null;
+
+    const userType = publicMetadata?.user_type || "retailer"; // 기본값: 소매점
+    const businessName = publicMetadata?.business_name || fullName;
+    const metadataPhone = publicMetadata?.phone || phone;
+
+    console.log(
+      "📦 Clerk publicMetadata:",
+      JSON.stringify(publicMetadata, null, 2),
+    );
+    console.log("👤 사용자 유형:", userType);
+    console.log("🏢 상호명:", businessName);
+
     // Supabase users 테이블에 사용자 정보 동기화
-    // 주의: user_type과 business_name은 필수이지만, Clerk에서 받을 수 없으므로
-    // 기본값으로 설정합니다. 나중에 사용자가 프로필을 완성하도록 할 수 있습니다.
+    // 기존 사용자가 있으면 업데이트하지 않고, 없으면 생성
+    // user_type과 business_name은 회원가입 완료 페이지에서 설정되므로
+    // 이미 존재하는 경우 기존 값을 유지합니다.
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, user_type, business_name")
+      .eq("id", clerkUser.id)
+      .single();
+
+    let userDataToUpsert: {
+      id: string;
+      email: string;
+      user_type: string;
+      business_name: string;
+      phone?: string;
+      nickname?: string;
+    } = {
+      id: clerkUser.id,
+      email: email,
+      user_type: userType,
+      business_name: businessName,
+    };
+
+    if (metadataPhone) {
+      userDataToUpsert.phone = metadataPhone;
+    }
+
+    if (publicMetadata?.nickname) {
+      userDataToUpsert.nickname = publicMetadata.nickname;
+    }
+
+    // 기존 사용자가 있고 user_type이 이미 설정되어 있으면 유지
+    if (existingUser && existingUser.user_type) {
+      userDataToUpsert.user_type = existingUser.user_type;
+      console.log("✅ 기존 user_type 유지:", existingUser.user_type);
+    }
+
+    // 기존 사용자가 있고 business_name이 이미 설정되어 있으면 유지
+    if (existingUser && existingUser.business_name) {
+      userDataToUpsert.business_name = existingUser.business_name;
+      console.log("✅ 기존 business_name 유지:", existingUser.business_name);
+    }
+
+    console.log(
+      "💾 저장할 사용자 데이터:",
+      JSON.stringify(userDataToUpsert, null, 2),
+    );
+
     const { data, error } = await supabase
       .from("users")
-      .upsert(
-        {
-          id: clerkUser.id, // Clerk user ID를 UUID로 사용
-          email: email,
-          user_type: "retailer", // 기본값: 소매점 (나중에 프로필에서 변경 가능)
-          business_name: fullName, // 기본값: 이름 (나중에 프로필에서 변경 가능)
-          phone: phone,
-        },
-        {
-          onConflict: "id", // id 컬럼을 기준으로 upsert
-        },
-      )
+      .upsert(userDataToUpsert, {
+        onConflict: "id", // id 컬럼을 기준으로 upsert
+      })
       .select()
       .single();
 
