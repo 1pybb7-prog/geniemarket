@@ -113,17 +113,6 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ ${apiMarketPrices.length}개의 시세 정보 조회 성공`);
 
-    // API 응답을 DB 타입으로 변환
-    const marketPrices: MarketPrice[] = apiMarketPrices.map((price) => ({
-      id: "", // DB에 저장될 때 생성됨
-      standard_product_id: undefined,
-      market_name: price.marketName,
-      price: price.price,
-      grade: price.grade || undefined,
-      date: price.date,
-      created_at: new Date().toISOString(),
-    }));
-
     // Supabase 클라이언트 생성
     const supabase = getServiceRoleClient();
 

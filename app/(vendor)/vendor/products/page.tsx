@@ -33,6 +33,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -41,7 +42,6 @@ import {
   Edit,
   Trash2,
   Check,
-  X,
   Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -286,11 +286,14 @@ export default function VendorProductsPage() {
                 <CardContent className="space-y-4">
                   {/* 상품 이미지 */}
                   {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.original_name}
-                      className="w-full h-48 object-cover rounded-lg border"
-                    />
+                    <div className="relative w-full h-48">
+                      <Image
+                        src={product.image_url}
+                        alt={product.original_name}
+                        fill
+                        className="object-cover rounded-lg border"
+                      />
+                    </div>
                   ) : (
                     <div className="w-full h-48 flex items-center justify-center bg-gray-100 rounded-lg border">
                       <ImageIcon className="w-12 h-12 text-gray-400" />

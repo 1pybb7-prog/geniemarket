@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { createClerkSupabaseClient } from "@/lib/supabase/server";
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
 import { hasUserType } from "@/lib/types";
 import { ProductFormData } from "@/components/products/ProductForm";
