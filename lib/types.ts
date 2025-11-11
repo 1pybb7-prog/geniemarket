@@ -43,9 +43,7 @@ export function hasUserType(
  * @param userType - 사용자 유형 문자열
  * @returns 유형 배열
  */
-export function getUserTypes(
-  userType: string,
-): ("vendor" | "retailer")[] {
+export function getUserTypes(userType: string): ("vendor" | "retailer")[] {
   if (userType === "vendor/retailer") {
     return ["vendor", "retailer"];
   }
@@ -60,14 +58,15 @@ export function getUserTypes(
  * @param types - 유형 배열
  * @returns 유형 문자열
  */
-export function combineUserTypes(
-  types: ("vendor" | "retailer")[],
-): UserType {
-  if (types.length === 2) {
+export function combineUserTypes(types: ("vendor" | "retailer")[]): UserType {
+  // 중복 제거 및 정렬
+  const uniqueTypes = Array.from(new Set(types)).sort();
+
+  if (uniqueTypes.length === 2) {
     return "vendor/retailer";
   }
-  if (types.length === 1) {
-    return types[0];
+  if (uniqueTypes.length === 1) {
+    return uniqueTypes[0] as "vendor" | "retailer";
   }
   throw new Error("최소 하나의 유형이 필요합니다.");
 }
@@ -97,6 +96,10 @@ export interface User {
   business_name: string;
   /** 전화번호 (선택 사항) */
   phone?: string;
+  /** 시/도 (예: 서울, 경기, 부산 등) */
+  region?: string;
+  /** 시/군/구 (예: 강남구, 서초구 등) */
+  city?: string;
   /** 생성 일시 */
   created_at: string;
   /** 수정 일시 */
@@ -122,6 +125,10 @@ export interface ProductRaw {
   stock: number;
   /** 상품 이미지 URL (선택 사항) */
   image_url?: string;
+  /** 시/도 (예: 서울, 경기, 부산 등) */
+  region?: string;
+  /** 시/군/구 (예: 강남구, 서초구 등) */
+  city?: string;
   /** 생성 일시 */
   created_at: string;
   /** 수정 일시 */

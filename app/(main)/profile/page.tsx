@@ -112,18 +112,22 @@ export default function ProfilePage() {
 
   // 회원 유형 토글 함수
   const toggleUserType = (type: "vendor" | "retailer") => {
-    const currentTypes = userTypes;
-    if (currentTypes.includes(type)) {
+    const currentTypes = userTypes || [];
+
+    // 중복 제거된 배열 생성
+    const uniqueTypes = Array.from(new Set(currentTypes));
+
+    if (uniqueTypes.includes(type)) {
       // 이미 선택된 경우 제거 (단, 최소 하나는 유지)
-      if (currentTypes.length > 1) {
-        setValue(
-          "userTypes",
-          currentTypes.filter((t) => t !== type),
-        );
+      if (uniqueTypes.length > 1) {
+        const filtered = uniqueTypes.filter((t) => t !== type);
+        setValue("userTypes", filtered);
       }
     } else {
-      // 선택되지 않은 경우 추가
-      setValue("userTypes", [...currentTypes, type]);
+      // 선택되지 않은 경우 추가 (중복 방지)
+      if (uniqueTypes.length < 2) {
+        setValue("userTypes", [...uniqueTypes, type]);
+      }
     }
   };
 
@@ -158,11 +162,13 @@ export default function ProfilePage() {
 
         // 폼 초기값 설정
         const userTypes = getUserTypes(data.user_type);
+        // 중복 제거 및 정렬
+        const cleanUserTypes = Array.from(new Set(userTypes)).sort();
         reset({
           nickname: data.nickname || "",
           business_name: data.business_name,
           phone: data.phone || "",
-          userTypes: userTypes,
+          userTypes: cleanUserTypes,
         });
 
         console.groupEnd();
@@ -281,6 +287,20 @@ export default function ProfilePage() {
       return;
     }
 
+    // userTypes 배열 검증 및 정리
+    if (!data.userTypes || data.userTypes.length === 0) {
+      toast.error("최소 하나의 회원 유형을 선택해주세요.");
+      return;
+    }
+
+    // 중복 제거 및 정렬
+    const uniqueUserTypes = Array.from(new Set(data.userTypes)).sort();
+
+    if (uniqueUserTypes.length === 0) {
+      toast.error("최소 하나의 회원 유형을 선택해주세요.");
+      return;
+    }
+
     // 닉네임 중복 확인
     if (data.nickname && data.nickname !== userData.nickname) {
       if (nicknameStatus.available === false) {
@@ -300,10 +320,11 @@ export default function ProfilePage() {
     try {
       console.group("📝 프로필 정보 업데이트 시작");
       console.log("업데이트할 정보:", data);
+      console.log("정리된 userTypes:", uniqueUserTypes);
 
       // userTypes 배열을 문자열로 변환
-      const userTypeString = combineUserTypes(data.userTypes);
-      console.log("선택된 회원 유형:", data.userTypes);
+      const userTypeString = combineUserTypes(uniqueUserTypes);
+      console.log("선택된 회원 유형:", uniqueUserTypes);
       console.log("저장할 회원 유형:", userTypeString);
 
       const response = await fetch("/api/user/update-profile", {
@@ -319,11 +340,32 @@ export default function ProfilePage() {
         }),
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        const text = await response.text();
+        result = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error("❌ 응답 파싱 실패:", parseError);
+        throw new Error(
+          `서버 응답을 처리할 수 없습니다. (상태 코드: ${response.status})`,
+        );
+      }
 
       if (!response.ok) {
         console.error("❌ 프로필 업데이트 실패:", result);
-        throw new Error(result.error || "프로필 업데이트에 실패했습니다.");
+        console.error("응답 상태:", response.status);
+        console.error("응답 본문:", JSON.stringify(result, null, 2));
+        // 오류 메시지 구성 (우선순위: error > details > code > 기본 메시지)
+        let errorMessage = result?.error || "프로필 업데이트에 실패했습니다.";
+        if (result?.details) {
+          errorMessage += ` (${result.details})`;
+        } else if (result?.code) {
+          errorMessage += ` (오류 코드: ${result.code})`;
+        }
+        if (response.status !== 200) {
+          errorMessage += ` [상태 코드: ${response.status}]`;
+        }
+        throw new Error(errorMessage);
       }
 
       console.log("✅ 프로필 업데이트 성공:", result);
@@ -572,11 +614,15 @@ export default function ProfilePage() {
                       onClick={() => {
                         setIsEditing(false);
                         const userTypes = getUserTypes(userData.user_type);
+                        // 중복 제거 및 정렬
+                        const cleanUserTypes = Array.from(
+                          new Set(userTypes),
+                        ).sort();
                         reset({
                           nickname: userData.nickname || "",
                           business_name: userData.business_name,
                           phone: userData.phone || "",
-                          userTypes: userTypes,
+                          userTypes: cleanUserTypes,
                         });
                         setNicknameStatus({ available: null, message: "" });
                       }}

@@ -40,6 +40,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Package, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { LowestPrice } from "@/lib/types";
+import { REGIONS, getCitiesByRegion } from "@/lib/constants/regions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 // useSearchParams를 사용하는 내부 컴포넌트
 function ProductsPageContent() {
@@ -52,6 +61,9 @@ function ProductsPageContent() {
     searchParams.get("search") || "",
   );
   const [category, setCategory] = useState(searchParams.get("category") || "");
+  const [region, setRegion] = useState(searchParams.get("region") || "");
+  const [city, setCity] = useState(searchParams.get("city") || "");
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const limit = 12;
@@ -63,6 +75,21 @@ function ProductsPageContent() {
       router.push("/sign-in");
     }
   }, [user, isLoaded, router]);
+
+  // 시/도 선택 시 시/군/구 목록 업데이트
+  useEffect(() => {
+    if (region) {
+      const cities = getCitiesByRegion(region);
+      setAvailableCities(cities);
+      // 시/도가 변경되면 시/군/구 초기화
+      if (city && !cities.includes(city)) {
+        setCity("");
+      }
+    } else {
+      setAvailableCities([]);
+      setCity("");
+    }
+  }, [region, city]);
 
   // 상품 검색
   const fetchProducts = useCallback(
@@ -78,6 +105,8 @@ function ProductsPageContent() {
         console.group("🔍 상품 검색 시작");
         console.log("검색어:", searchQuery);
         console.log("카테고리:", category);
+        console.log("지역 - 시/도:", region || "없음");
+        console.log("지역 - 시/군/구:", city || "없음");
         console.log("페이지:", reset ? 0 : offset);
 
         const params = new URLSearchParams({
@@ -91,6 +120,12 @@ function ProductsPageContent() {
         }
         if (category) {
           params.append("category", category);
+        }
+        if (region) {
+          params.append("region", region);
+        }
+        if (city) {
+          params.append("city", city);
         }
 
         const response = await fetch(`/api/products?${params.toString()}`);
@@ -121,7 +156,7 @@ function ProductsPageContent() {
         setLoading(false);
       }
     },
-    [user, isLoaded, searchQuery, category, offset, limit],
+    [user, isLoaded, searchQuery, category, region, city, offset, limit],
   );
 
   // 초기 로드
@@ -142,6 +177,12 @@ function ProductsPageContent() {
     if (category) {
       params.set("category", category);
     }
+    if (region) {
+      params.set("region", region);
+    }
+    if (city) {
+      params.set("city", city);
+    }
     router.push(`/products?${params.toString()}`);
     // 검색 실행
     setTimeout(() => fetchProducts(true), 100);
@@ -157,6 +198,54 @@ function ProductsPageContent() {
     }
     if (newCategory) {
       params.set("category", newCategory);
+    }
+    if (region) {
+      params.set("region", region);
+    }
+    if (city) {
+      params.set("city", city);
+    }
+    router.push(`/products?${params.toString()}`);
+    // 검색 실행
+    setTimeout(() => fetchProducts(true), 100);
+  };
+
+  // 지역 변경 시 검색
+  const handleRegionChange = (newRegion: string) => {
+    setRegion(newRegion);
+    setCity(""); // 시/도 변경 시 시/군/구 초기화
+    // URL 업데이트
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) {
+      params.set("search", searchQuery.trim());
+    }
+    if (category) {
+      params.set("category", category);
+    }
+    if (newRegion) {
+      params.set("region", newRegion);
+    }
+    router.push(`/products?${params.toString()}`);
+    // 검색 실행
+    setTimeout(() => fetchProducts(true), 100);
+  };
+
+  // 시/군/구 변경 시 검색
+  const handleCityChange = (newCity: string) => {
+    setCity(newCity);
+    // URL 업데이트
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) {
+      params.set("search", searchQuery.trim());
+    }
+    if (category) {
+      params.set("category", category);
+    }
+    if (region) {
+      params.set("region", region);
+    }
+    if (newCity) {
+      params.set("city", newCity);
     }
     router.push(`/products?${params.toString()}`);
     // 검색 실행
@@ -241,6 +330,53 @@ function ProductsPageContent() {
           >
             수산물
           </Button>
+        </div>
+
+        {/* 지역 필터 */}
+        <div className="flex gap-4 items-end">
+          <div className="flex-1 max-w-xs">
+            <Label htmlFor="region" className="mb-2 block">
+              시/도
+            </Label>
+            <Select
+              value={region || undefined}
+              onValueChange={(value) => handleRegionChange(value || "")}
+            >
+              <SelectTrigger id="region">
+                <SelectValue placeholder="시/도를 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {REGIONS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {region && availableCities.length > 0 && (
+            <div className="flex-1 max-w-xs">
+              <Label htmlFor="city" className="mb-2 block">
+                시/군/구
+              </Label>
+              <Select
+                value={city || undefined}
+                onValueChange={(value) => handleCityChange(value || "")}
+              >
+                <SelectTrigger id="city">
+                  <SelectValue placeholder="시/군/구를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCities.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 

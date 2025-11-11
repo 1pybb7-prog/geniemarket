@@ -5,12 +5,12 @@
  * @description 사이드바 컴포넌트 (Desktop)
  *
  * Desktop 화면에서 표시되는 사이드바 네비게이션입니다.
- * 홈, 상품, 시세, 주문 메뉴를 포함하며, 현재 페이지를 하이라이트합니다.
+ * 홈, 상품, 시세, 주문, 마이페이지 메뉴를 포함하며, 현재 페이지를 하이라이트합니다.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, TrendingUp, FileText } from "lucide-react";
+import { Home, Package, TrendingUp, FileText, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { href: "/products", label: "상품", icon: Package },
   { href: "/market-prices", label: "시세", icon: TrendingUp },
   { href: "/orders", label: "주문", icon: FileText },
+  { href: "/profile", label: "마이페이지", icon: User },
 ];
 
 export function Sidebar() {

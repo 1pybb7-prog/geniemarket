@@ -79,10 +79,20 @@ export async function GET(request: Request) {
     const type = searchParams.get("type");
     const search = searchParams.get("search");
     const category = searchParams.get("category");
+    const region = searchParams.get("region");
+    const city = searchParams.get("city");
     const limit = parseInt(searchParams.get("limit") || "12", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    console.log("📋 쿼리 파라미터:", { type, search, category, limit, offset });
+    console.log("📋 쿼리 파라미터:", {
+      type,
+      search,
+      category,
+      region,
+      city,
+      limit,
+      offset,
+    });
 
     // Supabase 클라이언트 생성
     const supabase = getServiceRoleClient();
@@ -109,7 +119,10 @@ export async function GET(request: Request) {
     console.log("👤 요청된 유형:", requestedType);
 
     // 도매점(vendor)인 경우: 본인 상품 목록 조회
-    if (hasUserType(userType, "vendor") && (requestedType === "vendor" || !type)) {
+    if (
+      hasUserType(userType, "vendor") &&
+      (requestedType === "vendor" || !type)
+    ) {
       // 도매점의 상품 목록 조회 (표준화 결과 포함)
       const { data: products, error: productsError } = await supabase
         .from("products_raw")
@@ -154,50 +167,146 @@ export async function GET(request: Request) {
     }
 
     // 소매점(retailer)인 경우: 표준 상품 검색 (최저가 포함)
-    // v_lowest_prices 뷰 사용
-    let query = supabase
-      .from("v_lowest_prices")
-      .select("*", { count: "exact" });
+    // 지역 필터링이 필요한 경우 v_product_prices를 사용하고, 그렇지 않으면 v_lowest_prices 사용
+    const needsRegionFilter = region || city;
 
-    // 검색어 필터
-    if (search && search.trim().length > 0) {
-      query = query.ilike("standard_name", `%${search.trim()}%`);
-    }
+    if (needsRegionFilter) {
+      // 지역 필터링이 필요한 경우: v_product_prices 사용 후 그룹화
+      let baseQuery = supabase
+        .from("v_product_prices")
+        .select("*", { count: "exact" });
 
-    // 카테고리 필터
-    if (category && category.trim().length > 0) {
-      query = query.eq("category", category.trim());
-    }
+      // 검색어 필터
+      if (search && search.trim().length > 0) {
+        baseQuery = baseQuery.ilike("standard_name", `%${search.trim()}%`);
+      }
 
-    // 페이지네이션
-    query = query.range(offset, offset + limit - 1);
+      // 카테고리 필터
+      if (category && category.trim().length > 0) {
+        baseQuery = baseQuery.eq("category", category.trim());
+      }
 
-    // 정렬 (최저가 낮은 순)
-    query = query.order("lowest_price", { ascending: true });
+      // 지역 필터
+      if (region && region.trim().length > 0) {
+        baseQuery = baseQuery.eq("region", region.trim());
+        console.log("📍 지역 필터 - 시/도:", region);
+      }
 
-    const { data: products, error: productsError, count } = await query;
+      if (city && city.trim().length > 0) {
+        baseQuery = baseQuery.eq("city", city.trim());
+        console.log("📍 지역 필터 - 시/군/구:", city);
+      }
 
-    if (productsError) {
-      console.error("❌ 상품 목록 조회 실패:", productsError);
-      console.groupEnd();
-      return NextResponse.json(
+      // 데이터 조회
+      const {
+        data: allProducts,
+        error: productsError,
+        count,
+      } = await baseQuery;
+
+      if (productsError) {
+        console.error("❌ 상품 목록 조회 실패:", productsError);
+        console.groupEnd();
+        return NextResponse.json(
+          {
+            error: "상품 목록 조회에 실패했습니다.",
+            details: productsError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      // 표준 상품별로 그룹화하여 최저가 계산
+      const groupedProducts = new Map<
+        string,
         {
-          error: "상품 목록 조회에 실패했습니다.",
-          details: productsError.message,
-        },
-        { status: 500 },
+          standard_product_id: string;
+          standard_name: string;
+          category?: string;
+          lowest_price: number;
+          product_count: number;
+        }
+      >();
+
+      (allProducts || []).forEach((product: any) => {
+        const key = product.standard_product_id;
+        if (!groupedProducts.has(key)) {
+          groupedProducts.set(key, {
+            standard_product_id: product.standard_product_id,
+            standard_name: product.standard_name,
+            category: product.category,
+            lowest_price: product.price,
+            product_count: 1,
+          });
+        } else {
+          const existing = groupedProducts.get(key)!;
+          if (product.price < existing.lowest_price) {
+            existing.lowest_price = product.price;
+          }
+          existing.product_count += 1;
+        }
+      });
+
+      // 배열로 변환하고 정렬
+      const products = Array.from(groupedProducts.values())
+        .sort((a, b) => a.lowest_price - b.lowest_price)
+        .slice(offset, offset + limit);
+
+      console.log(
+        `✅ ${products.length}개의 상품 조회 성공 (전체: ${count || 0}개, 지역 필터 적용)`,
       );
+      console.groupEnd();
+
+      return NextResponse.json({
+        products: products,
+        count: count || 0,
+      });
+    } else {
+      // 지역 필터링이 필요 없는 경우: 기존 로직 사용 (v_lowest_prices)
+      let query = supabase
+        .from("v_lowest_prices")
+        .select("*", { count: "exact" });
+
+      // 검색어 필터
+      if (search && search.trim().length > 0) {
+        query = query.ilike("standard_name", `%${search.trim()}%`);
+      }
+
+      // 카테고리 필터
+      if (category && category.trim().length > 0) {
+        query = query.eq("category", category.trim());
+      }
+
+      // 페이지네이션
+      query = query.range(offset, offset + limit - 1);
+
+      // 정렬 (최저가 낮은 순)
+      query = query.order("lowest_price", { ascending: true });
+
+      const { data: products, error: productsError, count } = await query;
+
+      if (productsError) {
+        console.error("❌ 상품 목록 조회 실패:", productsError);
+        console.groupEnd();
+        return NextResponse.json(
+          {
+            error: "상품 목록 조회에 실패했습니다.",
+            details: productsError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      console.log(
+        `✅ ${products?.length || 0}개의 상품 조회 성공 (전체: ${count || 0}개)`,
+      );
+      console.groupEnd();
+
+      return NextResponse.json({
+        products: products || [],
+        count: count || 0,
+      });
     }
-
-    console.log(
-      `✅ ${products?.length || 0}개의 상품 조회 성공 (전체: ${count || 0}개)`,
-    );
-    console.groupEnd();
-
-    return NextResponse.json({
-      products: products || [],
-      count: count || 0,
-    });
   } catch (error) {
     console.error("❌ 상품 목록 조회 API 에러:", error);
     return NextResponse.json(
@@ -331,9 +440,13 @@ export async function POST(request: Request) {
       unit: body.unit,
       stock: body.stock,
       image_url: body.image_url || null,
+      region: body.region || null,
+      city: body.city || null,
     };
 
     console.log("💾 저장할 상품 데이터:", productData);
+    console.log("📍 지역 정보 - 시/도:", productData.region || "없음");
+    console.log("📍 지역 정보 - 시/군/구:", productData.city || "없음");
 
     // products_raw 테이블에 상품 저장
     const { data: product, error: insertError } = await supabase

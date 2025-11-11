@@ -5,12 +5,12 @@
  * @description 도매점 사이드바 컴포넌트 (Desktop)
  *
  * Desktop 화면에서 표시되는 도매점 전용 사이드바 네비게이션입니다.
- * 홈, 내 상품, 주문 관리, 시세 참고 메뉴를 포함하며, 현재 페이지를 하이라이트합니다.
+ * 홈, 내 상품, 상품 등록, 주문 관리, 시세 참고, 마이페이지 메뉴를 포함하며, 현재 페이지를 하이라이트합니다.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, TrendingUp, FileText, Plus } from "lucide-react";
+import { Home, Package, TrendingUp, FileText, Plus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { href: "/vendor/products/new", label: "상품 등록", icon: Plus },
   { href: "/vendor/orders", label: "주문 관리", icon: FileText },
   { href: "/vendor/market-prices", label: "시세 참고", icon: TrendingUp },
+  { href: "/profile", label: "마이페이지", icon: User },
 ];
 
 export function VendorSidebar() {

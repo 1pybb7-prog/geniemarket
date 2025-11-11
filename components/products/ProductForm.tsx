@@ -33,7 +33,8 @@
  * @see {@link docs/TODO.md} - TODO 499-509 라인
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Upload, X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { REGIONS, getCitiesByRegion } from "@/lib/constants/regions";
 
 // 상품 등록 폼 스키마
 const productFormSchema = z.object({
@@ -68,6 +70,8 @@ const productFormSchema = z.object({
     .min(0, "재고는 0 이상이어야 합니다.")
     .max(999999, "재고는 999,999 이하여야 합니다."),
   image_url: z.string().optional(),
+  region: z.string().optional(),
+  city: z.string().optional(),
 });
 
 export type ProductFormData = z.infer<typeof productFormSchema>;
@@ -110,6 +114,10 @@ export function ProductForm({
   const [standardizedName, setStandardizedName] = useState<string | null>(null);
   const [previewingStandardization, setPreviewingStandardization] =
     useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string>(
+    defaultValues?.region || "",
+  );
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   const {
     register,
@@ -125,11 +133,31 @@ export function ProductForm({
       unit: defaultValues?.unit || "",
       stock: defaultValues?.stock || 0,
       image_url: defaultValues?.image_url || "",
+      region: defaultValues?.region || "",
+      city: defaultValues?.city || "",
     },
   });
 
   const originalName = watch("original_name");
   const unit = watch("unit");
+  const region = watch("region");
+  const city = watch("city");
+
+  // 시/도 선택 시 시/군/구 목록 업데이트
+  React.useEffect(() => {
+    if (region) {
+      const cities = getCitiesByRegion(region);
+      setAvailableCities(cities);
+      setSelectedRegion(region);
+      // 시/도가 변경되면 시/군/구 초기화
+      if (city && !cities.includes(city)) {
+        setValue("city", "");
+      }
+    } else {
+      setAvailableCities([]);
+      setSelectedRegion("");
+    }
+  }, [region, city, setValue]);
 
   // AI 표준화 미리보기
   const handlePreviewStandardization = async () => {
@@ -284,6 +312,8 @@ export function ProductForm({
     console.log("가격:", data.price, "원");
     console.log("단위:", data.unit);
     console.log("재고:", data.stock);
+    console.log("지역 - 시/도:", data.region || "없음");
+    console.log("지역 - 시/군/구:", data.city || "없음");
     console.log("이미지 URL:", data.image_url || "없음");
     console.groupEnd();
 
@@ -410,6 +440,67 @@ export function ProductForm({
           <p className="text-sm text-red-500">{errors.stock.message}</p>
         )}
       </div>
+
+      {/* 지역 선택 - 시/도 */}
+      <div className="space-y-2">
+        <Label htmlFor="region">
+          시/도 <span className="text-gray-500">(선택 사항)</span>
+        </Label>
+        <Select
+          value={region || undefined}
+          onValueChange={(value) => {
+            setValue("region", value || "");
+            setValue("city", ""); // 시/도 변경 시 시/군/구 초기화
+          }}
+        >
+          <SelectTrigger
+            id="region"
+            className={errors.region ? "border-red-500" : ""}
+          >
+            <SelectValue placeholder="시/도를 선택해주세요" />
+          </SelectTrigger>
+          <SelectContent>
+            {REGIONS.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {errors.region && (
+          <p className="text-sm text-red-500">{errors.region.message}</p>
+        )}
+      </div>
+
+      {/* 지역 선택 - 시/군/구 */}
+      {region && availableCities.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="city">
+            시/군/구 <span className="text-gray-500">(선택 사항)</span>
+          </Label>
+          <Select
+            value={city || undefined}
+            onValueChange={(value) => setValue("city", value || "")}
+          >
+            <SelectTrigger
+              id="city"
+              className={errors.city ? "border-red-500" : ""}
+            >
+              <SelectValue placeholder="시/군/구를 선택해주세요" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCities.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.city && (
+            <p className="text-sm text-red-500">{errors.city.message}</p>
+          )}
+        </div>
+      )}
 
       {/* 이미지 업로드 */}
       <div className="space-y-2">

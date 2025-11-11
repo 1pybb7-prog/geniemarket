@@ -36,7 +36,18 @@ export async function PATCH(req: Request) {
     console.log("👤 사용자 ID:", userId);
 
     // 요청 본문 가져오기
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error("❌ 요청 본문 파싱 실패:", parseError);
+      console.groupEnd();
+      return NextResponse.json(
+        { error: "잘못된 요청 형식입니다." },
+        { status: 400 },
+      );
+    }
+
     const { nickname, business_name, phone, user_type } = body;
 
     console.log("📦 업데이트할 정보:", {
@@ -45,6 +56,21 @@ export async function PATCH(req: Request) {
       phone,
       user_type,
     });
+
+    // 최소 하나의 필드는 업데이트되어야 함
+    if (
+      nickname === undefined &&
+      business_name === undefined &&
+      phone === undefined &&
+      user_type === undefined
+    ) {
+      console.error("❌ 업데이트할 정보가 없습니다.");
+      console.groupEnd();
+      return NextResponse.json(
+        { error: "업데이트할 정보를 입력해주세요." },
+        { status: 400 },
+      );
+    }
 
     const supabase = getServiceRoleClient();
 
@@ -67,7 +93,13 @@ export async function PATCH(req: Request) {
     console.log("✅ 기존 사용자 정보:", existingUser);
 
     // 닉네임이 변경되는 경우 중복 확인
-    if (nickname && nickname !== existingUser?.nickname) {
+    // nickname이 undefined가 아니고, 빈 문자열이 아니고, 기존 닉네임과 다른 경우
+    if (
+      nickname !== undefined &&
+      nickname !== null &&
+      nickname.trim() !== "" &&
+      nickname.trim() !== existingUser?.nickname
+    ) {
       const trimmedNickname = nickname.trim();
 
       // 닉네임 길이 검증
@@ -134,25 +166,44 @@ export async function PATCH(req: Request) {
     };
 
     if (nickname !== undefined) {
-      updateData.nickname = nickname.trim();
+      // 빈 문자열도 null로 처리
+      updateData.nickname =
+        nickname && nickname.trim() ? nickname.trim() : null;
     }
     if (business_name !== undefined) {
-      updateData.business_name = business_name;
+      // business_name은 필수이므로 빈 문자열 체크
+      if (!business_name || !business_name.trim()) {
+        console.error("❌ 상호명이 비어있습니다.");
+        console.groupEnd();
+        return NextResponse.json(
+          { error: "상호명을 입력해주세요." },
+          { status: 400 },
+        );
+      }
+      updateData.business_name = business_name.trim();
     }
     if (phone !== undefined) {
-      updateData.phone = phone || null;
+      // 빈 문자열도 null로 처리
+      updateData.phone = phone && phone.trim() ? phone.trim() : null;
     }
     if (user_type !== undefined) {
       // user_type 유효성 검사
-      if (!["vendor", "retailer", "vendor/retailer"].includes(user_type)) {
+      const validUserTypes = ["vendor", "retailer", "vendor/retailer"];
+      if (!validUserTypes.includes(user_type)) {
         console.error("❌ 잘못된 user_type:", user_type);
+        console.error("유효한 user_type:", validUserTypes);
         console.groupEnd();
         return NextResponse.json(
-          { error: "잘못된 회원 유형입니다." },
+          {
+            error: "잘못된 회원 유형입니다.",
+            details: `허용된 값: ${validUserTypes.join(", ")}`,
+            received: user_type,
+          },
           { status: 400 },
         );
       }
       updateData.user_type = user_type;
+      console.log("✅ user_type 검증 통과:", user_type);
     }
 
     console.log("💾 Supabase 업데이트 데이터:", updateData);
@@ -167,9 +218,34 @@ export async function PATCH(req: Request) {
 
     if (updateError) {
       console.error("❌ Supabase 업데이트 실패:", updateError);
+      console.error("오류 코드:", updateError.code);
+      console.error("오류 메시지:", updateError.message);
+      console.error("오류 상세:", updateError.details);
+      console.error("오류 힌트:", updateError.hint);
+      console.error(
+        "업데이트하려던 데이터:",
+        JSON.stringify(updateData, null, 2),
+      );
       console.groupEnd();
+
+      // 더 구체적인 오류 메시지 제공
+      let errorMessage = "프로필 업데이트에 실패했습니다.";
+      if (updateError.code === "23505") {
+        errorMessage = "중복된 값이 있습니다. (예: 닉네임 중복)";
+      } else if (updateError.code === "23503") {
+        errorMessage = "참조 무결성 오류가 발생했습니다.";
+      } else if (updateError.code === "23514") {
+        errorMessage = "데이터 제약 조건을 위반했습니다.";
+      } else if (updateError.message) {
+        errorMessage = `데이터베이스 오류: ${updateError.message}`;
+      }
+
       return NextResponse.json(
-        { error: "프로필 업데이트에 실패했습니다." },
+        {
+          error: errorMessage,
+          details: updateError.message,
+          code: updateError.code,
+        },
         { status: 500 },
       );
     }
@@ -196,11 +272,29 @@ export async function PATCH(req: Request) {
 
     console.log("📦 Clerk publicMetadata 업데이트:", newMetadata);
 
-    await client.users.updateUser(userId, {
-      publicMetadata: newMetadata,
-    });
+    try {
+      await client.users.updateUser(userId, {
+        publicMetadata: newMetadata,
+      });
+      console.log("✅ Clerk publicMetadata 업데이트 성공");
+    } catch (clerkError) {
+      console.error("❌ Clerk publicMetadata 업데이트 실패:", clerkError);
+      // Supabase는 이미 업데이트되었으므로 롤백하지 않음
+      // 하지만 오류를 사용자에게 알림
+      console.groupEnd();
+      return NextResponse.json(
+        {
+          error:
+            "프로필 정보는 업데이트되었지만 메타데이터 동기화에 실패했습니다.",
+          details:
+            clerkError instanceof Error
+              ? clerkError.message
+              : "Unknown Clerk error",
+        },
+        { status: 500 },
+      );
+    }
 
-    console.log("✅ Clerk publicMetadata 업데이트 성공");
     console.groupEnd();
 
     return NextResponse.json({
