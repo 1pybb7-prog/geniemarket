@@ -374,7 +374,7 @@ export default function VendorMarketPricesPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">
-                "{searchResults.productName}" 시세 조회 결과
+                &ldquo;{searchResults.productName}&rdquo; 시세 조회 결과
               </CardTitle>
               {searchResults.averagePrice > 0 && (
                 <p className="text-sm text-gray-600">

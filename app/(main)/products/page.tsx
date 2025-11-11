@@ -35,7 +35,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/products/ProductCard";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Package, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";

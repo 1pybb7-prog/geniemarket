@@ -5,7 +5,6 @@ import {
   type MarketPrice as ApiMarketPrice,
 } from "@/lib/market-api";
 import { getServiceRoleClient } from "@/lib/supabase/service-role";
-import type { MarketPrice } from "@/lib/types";
 
 /**
  * @file app/api/market-prices/route.ts

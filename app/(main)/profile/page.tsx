@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import { Package, Edit2, Check } from "lucide-react";
 import Link from "next/link";
 import type { Order } from "@/lib/types";
-import { getUserTypes, combineUserTypes, hasUserType } from "@/lib/types";
+import { getUserTypes, combineUserTypes } from "@/lib/types";
 
 interface UserData {
   id: string;
@@ -80,7 +80,6 @@ type ProfileFormData = z.infer<typeof profileFormSchema>;
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
   const supabase = useClerkSupabaseClient();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -278,7 +277,7 @@ export default function ProfilePage() {
     } else {
       setNicknameStatus({ available: null, message: "" });
     }
-  }, [watchedNickname]);
+  }, [watchedNickname, checkNickname]);
 
   // 프로필 수정 제출
   const onSubmit = async (data: ProfileFormData) => {
