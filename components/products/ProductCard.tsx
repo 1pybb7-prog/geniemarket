@@ -28,6 +28,7 @@
  */
 
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Image as ImageIcon, ShoppingCart, TrendingDown } from "lucide-react";
@@ -49,10 +50,11 @@ export function ProductCard({ product, imageUrl }: ProductCardProps) {
         {/* 상품 이미지 */}
         {imageUrl ? (
           <div className="relative w-full h-48 overflow-hidden">
-            <img
+            <Image
               src={imageUrl}
               alt={product.standard_name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           </div>
         ) : (

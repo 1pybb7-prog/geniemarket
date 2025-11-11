@@ -33,8 +33,9 @@
  * @see {@link docs/TODO.md} - TODO 499-509 라인
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import * as React from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -114,9 +115,6 @@ export function ProductForm({
   const [standardizedName, setStandardizedName] = useState<string | null>(null);
   const [previewingStandardization, setPreviewingStandardization] =
     useState(false);
-  const [selectedRegion, setSelectedRegion] = useState<string>(
-    defaultValues?.region || "",
-  );
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
   const {
@@ -148,14 +146,12 @@ export function ProductForm({
     if (region) {
       const cities = getCitiesByRegion(region);
       setAvailableCities(cities);
-      setSelectedRegion(region);
       // 시/도가 변경되면 시/군/구 초기화
       if (city && !cities.includes(city)) {
         setValue("city", "");
       }
     } else {
       setAvailableCities([]);
-      setSelectedRegion("");
     }
   }, [region, city, setValue]);
 
@@ -510,11 +506,12 @@ export function ProductForm({
         <div className="space-y-4">
           {/* 이미지 미리보기 */}
           {imagePreview && (
-            <div className="relative w-full max-w-md">
-              <img
+            <div className="relative w-full max-w-md h-48">
+              <Image
                 src={imagePreview}
                 alt="상품 미리보기"
-                className="w-full h-48 object-cover rounded-lg border"
+                fill
+                className="object-cover rounded-lg border"
               />
               <Button
                 type="button"

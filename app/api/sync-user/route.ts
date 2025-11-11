@@ -84,7 +84,7 @@ export async function POST() {
       .eq("id", clerkUser.id)
       .single();
 
-    let userDataToUpsert: {
+    const userDataToUpsert: {
       id: string;
       email: string;
       user_type: string;

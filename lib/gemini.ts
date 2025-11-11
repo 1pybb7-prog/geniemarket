@@ -154,7 +154,7 @@ export async function standardizeProductName(
           console.log(`✅ 대안 모델 성공: ${modelName}`);
           success = true;
           break;
-        } catch (altError) {
+        } catch {
           console.log(`⚠️ ${modelName} 실패, 다음 모델 시도 중...`);
         }
       }

@@ -413,12 +413,7 @@ export async function POST(req: Request) {
       console.log("🗑️ 삭제할 사용자 ID:", id);
 
       // Supabase users 테이블에서 사용자 삭제
-      const { error, data } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", id)
-        .select()
-        .single();
+      const { error } = await supabase.from("users").delete().eq("id", id);
 
       if (error) {
         console.error("❌ Supabase 사용자 삭제 실패:");
