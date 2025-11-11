@@ -342,7 +342,13 @@ export default function VendorMarketPricesPage() {
           <CardTitle className="text-lg">상품명으로 시세 조회</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSearchMarketPrice();
+            }}
+            className="flex gap-4"
+          >
             <div className="flex-1">
               <SearchBar
                 value={searchQuery}
@@ -350,13 +356,15 @@ export default function VendorMarketPricesPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
+                    e.stopPropagation();
                     handleSearchMarketPrice();
                   }
                 }}
                 placeholder="상품명을 입력하세요 (예: 청양고추, 사과, 배추)"
+                noForm={true}
               />
             </div>
-            <Button onClick={handleSearchMarketPrice} disabled={loadingSearch}>
+            <Button type="submit" disabled={loadingSearch}>
               {loadingSearch ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
@@ -364,7 +372,7 @@ export default function VendorMarketPricesPage() {
               )}
               시세 조회
             </Button>
-          </div>
+          </form>
         </CardContent>
       </Card>
 

@@ -8,19 +8,20 @@ import { getServiceRoleClient } from "@/lib/supabase/service-role";
 
 /**
  * @file app/api/market-prices/route.ts
- * @description 공영도매시장 실시간 시세 조회 API (GET)
+ * @description 공영도매시장 실시간 경매 가격 조회 API (GET)
  *
- * 이 API는 공공데이터포털 API를 사용하여 전국 공영도매시장의 실시간 경매 가격 정보를 조회합니다.
+ * 이 API는 KAMIS API를 사용하여 전국 공영도매시장의 실시간 경매 가격 정보를 조회합니다.
+ * dailyPriceByCategoryList 액션을 사용하여 오늘 날짜의 실시간 경매 가격을 조회합니다.
  *
  * 주요 기능:
- * 1. 상품명으로 공공 API 호출
- * 2. 응답 데이터 파싱 (XML → JSON)
+ * 1. 상품명으로 실시간 경매 가격 조회 (KAMIS API 호출)
+ * 2. JSON 응답 데이터 파싱
  * 3. 필요한 필드만 추출
  * 4. market_prices 테이블에 저장 (캐싱)
  * 5. 결과 반환
  *
  * 핵심 구현 로직:
- * - 공공데이터포털 API 호출
+ * - KAMIS API 호출 (dailyPriceByCategoryList 액션)
  * - 응답 데이터 파싱 및 변환
  * - market_prices 테이블에 저장 (캐싱)
  * - 에러 처리 (실패 시 빈 배열 반환)
@@ -36,10 +37,13 @@ import { getServiceRoleClient } from "@/lib/supabase/service-role";
 
 /**
  * GET /api/market-prices?productName={상품명}
- * 공영도매시장 실시간 시세 조회
+ * 공영도매시장 실시간 경매 가격 조회
+ *
+ * KAMIS API의 dailyPriceByCategoryList 액션을 사용하여
+ * 오늘 날짜의 실시간 경매 가격 정보를 조회합니다.
  *
  * Query Parameters:
- * - productName: 조회할 상품명 (필수)
+ * - productName: 조회할 상품명 (필수, 예: "청양고추", "배추", "사과")
  *
  * Response:
  * {

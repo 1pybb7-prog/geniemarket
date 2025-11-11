@@ -215,6 +215,13 @@ export default async function LandingPage() {
     console.log("👤 소매점 여부:", isRetailer);
     console.log("👤 사용 가능한 유형:", userTypes);
 
+    // 도매점 권한이 있는 사용자는 /vendor로 리다이렉트
+    // (vendor/retailer 조합인 경우도 포함)
+    if (isVendor) {
+      console.log("🔄 도매점 사용자 감지, /vendor로 리다이렉트");
+      redirect("/vendor");
+    }
+
     // 둘 다인 경우 도매점 사이드바를 기본으로 표시 (나중에 역할 전환 기능 추가 가능)
     const showVendorSidebar = isVendor;
 

@@ -20,7 +20,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: "/", label: "홈", icon: Home },
+  { href: "/vendor", label: "홈", icon: Home },
   { href: "/vendor/products", label: "내 상품", icon: Package },
   { href: "/vendor/products/new", label: "상품 등록", icon: Plus },
   { href: "/vendor/orders", label: "주문 관리", icon: FileText },
