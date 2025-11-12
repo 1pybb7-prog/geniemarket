@@ -287,11 +287,21 @@ export default function VendorProductsPage() {
                   {/* 상품 이미지 */}
                   {product.image_url ? (
                     <div className="relative w-full h-48">
+                      {(() => {
+                        console.group("🖼️ 상품 이미지 렌더링");
+                        console.log("상품 ID:", product.id);
+                        console.log("상품명:", product.original_name);
+                        console.log("이미지 URL:", product.image_url);
+                        console.groupEnd();
+                        return null;
+                      })()}
                       <Image
                         src={product.image_url}
                         alt={product.original_name}
                         fill
                         className="object-cover rounded-lg border"
+                        unoptimized
+                        priority={false}
                       />
                     </div>
                   ) : (

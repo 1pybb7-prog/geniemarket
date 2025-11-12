@@ -50,11 +50,20 @@ export function ProductCard({ product, imageUrl }: ProductCardProps) {
         {/* 상품 이미지 */}
         {imageUrl ? (
           <div className="relative w-full h-48 overflow-hidden">
+            {(() => {
+              console.group("🖼️ 상품 카드 이미지 렌더링");
+              console.log("상품명:", product.standard_name);
+              console.log("이미지 URL:", imageUrl);
+              console.groupEnd();
+              return null;
+            })()}
             <Image
               src={imageUrl}
               alt={product.standard_name}
               fill
               className="object-cover"
+              unoptimized
+              priority={false}
             />
           </div>
         ) : (
