@@ -33,6 +33,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProductCard } from "@/components/products/ProductCard";
+import { OrderModal } from "@/components/orders/OrderModal";
 import { SearchBar } from "@/components/layout/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -66,6 +67,11 @@ function ProductsPageContent() {
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const limit = 12;
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<LowestPrice | null>(
+    null,
+  );
+  const [loadingOrderData, setLoadingOrderData] = useState(false);
 
   // 인증 확인
   useEffect(() => {
@@ -251,6 +257,67 @@ function ProductsPageContent() {
     setTimeout(() => fetchProducts(true), 100);
   };
 
+  // 빠른 주문 핸들러
+  const handleQuickOrder = async (product: LowestPrice) => {
+    try {
+      setLoadingOrderData(true);
+      console.group("⚡ 빠른 주문 시작");
+      console.log("상품명:", product.standard_name);
+
+      // 가격 비교 API 호출하여 최저가인 상품 정보 가져오기
+      const response = await fetch(
+        `/api/products/compare?product=${encodeURIComponent(product.standard_name)}`,
+      );
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("❌ 가격 비교 데이터 조회 실패:", result);
+        throw new Error(
+          result.error || "가격 비교 데이터 조회에 실패했습니다.",
+        );
+      }
+
+      console.log("✅ 가격 비교 데이터 조회 성공:", result);
+
+      // 최저가인 상품 찾기
+      if (result.vendor_prices && result.vendor_prices.length > 0) {
+        const lowestPriceProduct = result.vendor_prices[0]; // 이미 가격 낮은 순으로 정렬됨
+
+        // 재고 확인
+        if (lowestPriceProduct.stock === 0) {
+          toast.error(
+            "재고가 없습니다. 가격 비교 페이지에서 다른 도매점을 확인해주세요.",
+          );
+          console.groupEnd();
+          return;
+        }
+
+        console.log("✅ 최저가 상품 정보:", lowestPriceProduct);
+        console.groupEnd();
+
+        // OrderModal에 전달할 형식으로 변환
+        setSelectedProduct({
+          ...product,
+          vendorPrice: lowestPriceProduct,
+        } as any);
+        setOrderModalOpen(true);
+      } else {
+        toast.error("주문 가능한 상품이 없습니다.");
+        console.groupEnd();
+      }
+    } catch (error) {
+      console.error("❌ 빠른 주문 에러:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "주문 정보를 불러오는데 실패했습니다.",
+      );
+      console.groupEnd();
+    } finally {
+      setLoadingOrderData(false);
+    }
+  };
+
   // 로딩 중
   if (!isLoaded || loading) {
     return (
@@ -409,6 +476,8 @@ function ProductsPageContent() {
                 key={product.standard_product_id}
                 product={product}
                 imageUrl={product.image_url}
+                onQuickOrder={handleQuickOrder}
+                isQuickOrderLoading={loadingOrderData}
               />
             ))}
           </div>
@@ -432,6 +501,17 @@ function ProductsPageContent() {
           )}
         </>
       )}
+
+      {/* 주문 모달 */}
+      <OrderModal
+        open={orderModalOpen}
+        onOpenChange={setOrderModalOpen}
+        vendorPrice={
+          selectedProduct && (selectedProduct as any).vendorPrice
+            ? (selectedProduct as any).vendorPrice
+            : null
+        }
+      />
     </div>
   );
 }

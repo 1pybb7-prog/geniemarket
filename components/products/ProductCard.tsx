@@ -11,11 +11,12 @@
  * 2. 표준 상품명 표시
  * 3. 최저가 표시
  * 4. "가격 비교하기" 버튼
+ * 5. "빠른 주문" 버튼 (최저가 상품으로 바로 주문)
  *
  * 핵심 구현 로직:
  * - 상품 정보를 카드 형태로 표시
  * - 최저가 강조 표시
- * - 가격 비교 페이지로 이동
+ * - 가격 비교 페이지로 이동 또는 빠른 주문
  *
  * @dependencies
  * - @/components/ui: shadcn/ui 컴포넌트
@@ -31,15 +32,28 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, ShoppingCart, TrendingDown } from "lucide-react";
+import {
+  Image as ImageIcon,
+  ShoppingCart,
+  TrendingDown,
+  Zap,
+  Loader2,
+} from "lucide-react";
 import type { LowestPrice } from "@/lib/types";
 
 interface ProductCardProps {
   product: LowestPrice;
   imageUrl?: string;
+  onQuickOrder?: (product: LowestPrice) => void;
+  isQuickOrderLoading?: boolean;
 }
 
-export function ProductCard({ product, imageUrl }: ProductCardProps) {
+export function ProductCard({
+  product,
+  imageUrl,
+  onQuickOrder,
+  isQuickOrderLoading = false,
+}: ProductCardProps) {
   const compareUrl = `/products/compare?product=${encodeURIComponent(
     product.standard_name,
   )}`;
@@ -98,13 +112,42 @@ export function ProductCard({ product, imageUrl }: ProductCardProps) {
           </p>
         )}
 
-        {/* 가격 비교하기 버튼 */}
-        <Link href={compareUrl} className="block">
-          <Button className="w-full" size="lg">
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            가격 비교하기
-          </Button>
-        </Link>
+        {/* 버튼 그룹 */}
+        <div className="space-y-2">
+          {/* 빠른 주문 버튼 */}
+          {onQuickOrder && (
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => onQuickOrder(product)}
+              variant="default"
+              disabled={isQuickOrderLoading}
+            >
+              {isQuickOrderLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  주문 정보 불러오는 중...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 mr-2" />
+                  빠른 주문
+                </>
+              )}
+            </Button>
+          )}
+          {/* 가격 비교하기 버튼 */}
+          <Link href={compareUrl} className="block">
+            <Button
+              className="w-full"
+              size="lg"
+              variant={onQuickOrder ? "outline" : "default"}
+            >
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              가격 비교하기
+            </Button>
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );
