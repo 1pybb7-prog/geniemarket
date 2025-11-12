@@ -267,4 +267,6 @@ export interface LowestPrice {
   lowest_price: number;
   /** 최저가 상품 수 */
   product_count: number;
+  /** 상품 이미지 URL (최저가인 상품의 이미지) */
+  image_url?: string;
 }

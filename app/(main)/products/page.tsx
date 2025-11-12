@@ -408,6 +408,7 @@ function ProductsPageContent() {
               <ProductCard
                 key={product.standard_product_id}
                 product={product}
+                imageUrl={product.image_url}
               />
             ))}
           </div>

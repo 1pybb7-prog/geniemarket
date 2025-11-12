@@ -224,6 +224,7 @@ export async function GET(request: Request) {
           category?: string;
           lowest_price: number;
           product_count: number;
+          image_url?: string;
         }
       >();
 
@@ -236,13 +237,20 @@ export async function GET(request: Request) {
             category: product.category,
             lowest_price: product.price,
             product_count: 1,
+            image_url: product.image_url || undefined,
           });
         } else {
           const existing = groupedProducts.get(key)!;
           if (product.price < existing.lowest_price) {
             existing.lowest_price = product.price;
+            // 최저가인 상품의 이미지 URL 사용
+            existing.image_url = product.image_url || existing.image_url;
           }
           existing.product_count += 1;
+          // 이미지 URL이 없고 현재 상품에 이미지가 있으면 사용
+          if (!existing.image_url && product.image_url) {
+            existing.image_url = product.image_url;
+          }
         }
       });
 
@@ -261,7 +269,7 @@ export async function GET(request: Request) {
         count: count || 0,
       });
     } else {
-      // 지역 필터링이 필요 없는 경우: 기존 로직 사용 (v_lowest_prices)
+      // 지역 필터링이 필요 없는 경우: v_lowest_prices 사용 후 이미지 추가
       let query = supabase
         .from("v_lowest_prices")
         .select("*", { count: "exact" });
@@ -294,6 +302,46 @@ export async function GET(request: Request) {
           },
           { status: 500 },
         );
+      }
+
+      // 각 상품에 대해 최저가인 상품의 이미지 URL 조회
+      if (products && products.length > 0) {
+        const standardProductIds = products.map((p) => p.standard_product_id);
+        
+        // 최저가인 상품들의 이미지 URL 조회
+        const { data: productImages, error: imagesError } = await supabase
+          .from("v_product_prices")
+          .select("standard_product_id, image_url, price")
+          .in("standard_product_id", standardProductIds);
+
+        if (!imagesError && productImages) {
+          // 표준 상품별로 최저가인 상품의 이미지 찾기
+          const imageMap = new Map<string, string | undefined>();
+          
+          products.forEach((product) => {
+            // 해당 표준 상품의 최저가인 상품 찾기
+            const matchingProducts = productImages.filter(
+              (img) => img.standard_product_id === product.standard_product_id
+            );
+            
+            if (matchingProducts.length > 0) {
+              // 최저가인 상품 찾기
+              const lowestPriceProduct = matchingProducts.reduce((min, current) => {
+                return current.price < min.price ? current : min;
+              });
+              
+              imageMap.set(
+                product.standard_product_id,
+                lowestPriceProduct.image_url || undefined
+              );
+            }
+          });
+
+          // 이미지 URL 추가
+          products.forEach((product) => {
+            (product as any).image_url = imageMap.get(product.standard_product_id);
+          });
+        }
       }
 
       console.log(
