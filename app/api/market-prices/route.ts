@@ -72,7 +72,9 @@ export async function GET(request: NextRequest) {
     console.log("🔍 조회할 상품명:", productName);
     console.log(
       "🔑 API 키 확인:",
-      process.env.PUBLIC_DATA_API_KEY ? "✅ 설정됨" : "❌ 없음",
+      process.env.AT_MARKET_API_KEY || process.env.PUBLIC_DATA_API_KEY
+        ? "✅ 설정됨"
+        : "❌ 없음",
     );
 
     // 공공 API 호출 (타임아웃 30초 - 여러 카테고리 시도하므로 시간 필요)

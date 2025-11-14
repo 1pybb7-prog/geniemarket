@@ -154,8 +154,13 @@ NEXT_PUBLIC_STORAGE_BUCKET=uploads
 # Google Gemini API
 GEMINI_API_KEY=xxxxx
 
-# 공공데이터 API
+# 공공데이터 API (aT 도매시장)
+# AT_MARKET_API_KEY를 우선 사용하고, 없으면 PUBLIC_DATA_API_KEY 사용
+AT_MARKET_API_KEY=xxxxx
+# 또는 기존 변수명 유지 (하위 호환성)
 PUBLIC_DATA_API_KEY=xxxxx
+# API 엔드포인트 URL (선택 사항, 기본값 사용 시 생략 가능)
+AT_MARKET_API_URL=https://apis.data.go.kr/B552895/openapi/service/WholesaleMarketPriceService/getWholesaleMarketPriceList
 ```
 
 #### 3. Supabase 프로젝트 설정

@@ -32,6 +32,8 @@ interface MarketPrice {
   price: number;
   grade?: string;
   date: string;
+  unit?: string; // 단위 정보
+  product_name?: string; // 상품명
 }
 
 interface MarketPriceCardProps {
@@ -65,16 +67,43 @@ export function MarketPriceCard({ marketPrice }: MarketPriceCardProps) {
           )}
         </div>
 
-        {/* 가격 */}
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-blue-600" />
-          <span className="text-2xl font-bold text-gray-900">
-            {marketPrice.price.toLocaleString()}원
-          </span>
+        {/* 상품명 */}
+        {marketPrice.product_name && (
+          <p className="text-sm text-gray-700 font-medium">
+            {marketPrice.product_name}
+          </p>
+        )}
+
+        {/* 가격 및 단위 */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <span className="text-2xl font-bold text-gray-900">
+              {marketPrice.price.toLocaleString()}원
+            </span>
+          </div>
+          {marketPrice.unit && (
+            <p className="text-sm text-gray-500 ml-7">
+              단위: {marketPrice.unit}
+            </p>
+          )}
         </div>
+
+        {/* 등급 정보 (명확히 표시) */}
+        {marketPrice.grade && marketPrice.grade !== "일반" && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-600">품질 등급:</span>
+            <span
+              className={`font-semibold ${getGradeColor(marketPrice.grade)}`}
+            >
+              {marketPrice.grade}
+            </span>
+          </div>
+        )}
 
         {/* 날짜 */}
         <p className="text-sm text-gray-500">
+          거래일:{" "}
           {new Date(marketPrice.date).toLocaleDateString("ko-KR", {
             year: "numeric",
             month: "long",
@@ -85,4 +114,3 @@ export function MarketPriceCard({ marketPrice }: MarketPriceCardProps) {
     </Card>
   );
 }
-
