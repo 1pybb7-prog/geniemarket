@@ -710,6 +710,17 @@ export async function getMarketPrices(
     return [];
   } catch (error) {
     console.error("❌ KAMIS Open API 호출 실패:", error);
+    console.error(
+      "❌ 에러 타입:",
+      error instanceof Error ? error.constructor.name : typeof error,
+    );
+    console.error(
+      "❌ 에러 메시지:",
+      error instanceof Error ? error.message : String(error),
+    );
+    if (error instanceof Error && error.stack) {
+      console.error("❌ 에러 스택:", error.stack);
+    }
     console.error("💡 빈 배열을 반환합니다.");
 
     // 에러 발생 시 빈 배열 반환 (안전한 폴백)

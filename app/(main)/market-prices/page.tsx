@@ -78,12 +78,62 @@ export default function MarketPricesPage() {
         params.append("productName", productName.trim());
       }
 
-      const response = await fetch(`/api/market-prices?${params.toString()}`);
-      const result = await response.json();
+      const apiUrl = `/api/market-prices?${params.toString()}`;
+      console.log("🔗 API URL:", apiUrl);
+
+      let response: Response;
+      try {
+        response = await fetch(apiUrl, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (fetchError) {
+        console.error("❌ Fetch 에러:", fetchError);
+        throw new Error(
+          "네트워크 연결에 실패했습니다. 인터넷 연결을 확인해주세요.",
+        );
+      }
+
+      // 응답이 없거나 실패한 경우
+      if (!response) {
+        throw new Error("서버로부터 응답을 받지 못했습니다.");
+      }
+
+      console.log("📥 응답 상태:", response.status, response.statusText);
+
+      // 응답 본문 파싱
+      let result: any;
+      try {
+        const responseText = await response.text();
+        console.log("📄 응답 본문 (처음 500자):", responseText.substring(0, 500));
+
+        if (!responseText || responseText.trim() === "") {
+          throw new Error("서버로부터 빈 응답을 받았습니다.");
+        }
+
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("❌ JSON 파싱 실패:", parseError);
+          console.error("📄 원본 응답:", responseText);
+          throw new Error("서버 응답을 파싱할 수 없습니다.");
+        }
+      } catch (parseError) {
+        if (parseError instanceof Error) {
+          throw parseError;
+        }
+        throw new Error("응답 처리 중 오류가 발생했습니다.");
+      }
 
       if (!response.ok) {
         console.error("❌ 시세 조회 실패:", result);
-        throw new Error(result.error || "시세 조회에 실패했습니다.");
+        const errorMessage =
+          result?.error ||
+          result?.details ||
+          `서버 오류 (${response.status}): ${response.statusText}`;
+        throw new Error(errorMessage);
       }
 
       console.log("✅ 시세 조회 성공:", result);
@@ -92,9 +142,12 @@ export default function MarketPricesPage() {
       setMarketPrices(result.prices || []);
     } catch (error) {
       console.error("❌ 시세 조회 에러:", error);
-      toast.error(
-        error instanceof Error ? error.message : "시세 조회에 실패했습니다.",
-      );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "시세 조회에 실패했습니다. 잠시 후 다시 시도해주세요.";
+      toast.error(errorMessage);
+      setMarketPrices([]); // 에러 발생 시 빈 배열로 초기화
     } finally {
       setLoading(false);
     }

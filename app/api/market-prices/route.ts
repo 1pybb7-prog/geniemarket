@@ -170,15 +170,45 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("❌ 공영시장 시세 조회 API 에러:", error);
-    return NextResponse.json(
-      {
-        error: "시세 조회 중 오류가 발생했습니다.",
-        details: error instanceof Error ? error.message : "Unknown error",
-        prices: [],
-        averagePrice: 0,
-        count: 0,
-      },
-      { status: 500 },
+    console.error(
+      "❌ 에러 타입:",
+      error instanceof Error ? error.constructor.name : typeof error,
     );
+    console.error(
+      "❌ 에러 메시지:",
+      error instanceof Error ? error.message : String(error),
+    );
+    if (error instanceof Error && error.stack) {
+      console.error("❌ 에러 스택:", error.stack);
+    }
+
+    // 에러 응답 반환 (항상 JSON 형식으로 반환)
+    try {
+      return NextResponse.json(
+        {
+          error: "시세 조회 중 오류가 발생했습니다.",
+          details: error instanceof Error ? error.message : "Unknown error",
+          prices: [],
+          averagePrice: 0,
+          count: 0,
+        },
+        { status: 500 },
+      );
+    } catch (responseError) {
+      // JSON 응답 생성 실패 시에도 로그만 남기고 빈 응답 반환
+      console.error("❌ 에러 응답 생성 실패:", responseError);
+      return new NextResponse(
+        JSON.stringify({
+          error: "시세 조회 중 오류가 발생했습니다.",
+          prices: [],
+          averagePrice: 0,
+          count: 0,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
   }
 }
