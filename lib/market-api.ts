@@ -1,26 +1,25 @@
 /**
  * @file market-api.ts
- * @description KAMIS Open API를 사용한 공영도매시장 실시간 시세 조회 유틸리티
+ * @description 공공데이터포털 API를 사용한 공영도매시장 실시간 시세 조회 유틸리티
  *
- * 이 파일은 KAMIS(한국농수산식품유통공사) Open API를 사용하여
+ * 이 파일은 공공데이터포털의 "한국농수산식품유통공사_전국 공영도매시장 실시간 경매정보" API를 사용하여
  * 전국 공영도매시장의 실시간 경매 가격 정보를 조회하는 기능을 제공합니다.
  *
  * 주요 기능:
  * 1. 상품명으로 실시간 경매 가격 조회
- * 2. JSON/XML 응답 파싱
+ * 2. JSON 응답 파싱
  * 3. 에러 처리 및 로깅
  *
  * 핵심 구현 로직:
- * - KAMIS API 엔드포인트 호출 (일일 도매가격 조회)
+ * - 공공데이터포털 API 엔드포인트 호출 (실시간 경매정보 조회)
  * - 최신 날짜의 시세만 필터링하여 반환
  * - API 호출 실패 시 빈 배열 반환 (안전한 폴백)
  *
  * @dependencies
- * - KAMIS API 인증 정보 (KAMIS_CERT_ID, KAMIS_CERT_KEY)
+ * - 공공데이터포털 API 인증 정보 (PUBLIC_DATA_API_KEY 또는 AT_MARKET_API_KEY)
  *
  * @see {@link /docs/TODO.md} - 공공 API 연동 요구사항
- * @see {@link https://www.kamis.or.kr} - KAMIS 홈페이지
- * @see {@link https://www.kamis.or.kr/customer/mypage/my_openapi/my_openapi.do} - KAMIS Open API
+ * @see {@link https://www.data.go.kr/data/15141808/openapi.do} - 공공데이터포털 API 문서
  */
 
 /**
@@ -38,7 +37,7 @@ export interface MarketPrice {
 /**
  * 공영도매시장 실시간 경매 가격을 조회합니다.
  *
- * KAMIS Open API를 사용하여
+ * 공공데이터포털 API를 사용하여
  * 오늘 날짜의 실시간 경매 가격 정보를 조회합니다.
  *
  * @param productName - 조회할 상품명 (예: "청양고추", "배추", "사과")
@@ -53,42 +52,36 @@ export interface MarketPrice {
 export async function getMarketPrices(
   productName: string,
 ): Promise<MarketPrice[]> {
-  console.group("📊 KAMIS Open API: 시세 조회 시작");
+  console.group("📊 공공데이터포털 API: 시세 조회 시작");
   console.log("🔍 상품명:", productName);
 
   try {
-    // KAMIS API 인증 정보 (우선순위: KAMIS_CERT_ID/KAMIS_CERT_KEY > 기존 변수명)
-    const certId =
-      process.env.KAMIS_CERT_ID ||
-      process.env.AT_MARKET_API_KEY ||
-      process.env.PUBLIC_DATA_API_KEY;
-    const certKey =
-      process.env.KAMIS_CERT_KEY ||
-      process.env.AT_MARKET_API_KEY ||
-      process.env.PUBLIC_DATA_API_KEY;
+    // 공공데이터포털 API 인증 정보
+    const apiKey =
+      process.env.PUBLIC_DATA_API_KEY || process.env.AT_MARKET_API_KEY;
 
-    if (!certId || !certKey) {
-      console.error("❌ KAMIS API 인증 정보가 설정되지 않았습니다.");
+    if (!apiKey) {
+      console.error("❌ 공공데이터포털 API 인증 정보가 설정되지 않았습니다.");
       console.error("💡 .env.local 파일에 다음 환경변수를 추가하세요:");
-      console.error("   - KAMIS_CERT_ID: KAMIS 회원 아이디");
-      console.error("   - KAMIS_CERT_KEY: KAMIS API 인증키");
+      console.error("   - PUBLIC_DATA_API_KEY: 공공데이터포털 API 키");
+      console.error("   또는");
+      console.error("   - AT_MARKET_API_KEY: 공공데이터포털 API 키");
       console.error(
-        "💡 KAMIS Open API 신청: https://www.kamis.or.kr/customer/mypage/my_openapi/my_openapi.do",
+        "💡 공공데이터포털 API 신청: https://www.data.go.kr/data/15141808/openapi.do",
       );
       throw new Error(
-        "KAMIS API 인증 정보가 설정되지 않았습니다. .env.local 파일에 KAMIS_CERT_ID와 KAMIS_CERT_KEY를 추가하세요.",
+        "공공데이터포털 API 인증 정보가 설정되지 않았습니다. .env.local 파일에 PUBLIC_DATA_API_KEY 또는 AT_MARKET_API_KEY를 추가하세요.",
       );
     }
 
-    // KAMIS API 엔드포인트
+    // 공공데이터포털 API 엔드포인트
     const BASE_URL =
-      process.env.KAMIS_API_URL ||
-      "https://www.kamis.or.kr/service/price/xml.do";
+      process.env.AT_MARKET_API_URL ||
+      "http://apis.data.go.kr/B552845/katRealTime/trades";
 
-    console.log("📤 일일 도매가격 조회 API 호출 중...");
+    console.log("📤 실시간 경매정보 조회 API 호출 중...");
     console.log("🔍 상품명:", productName);
-    console.log("🔑 인증 ID 설정 여부:", certId ? "✅ 설정됨" : "❌ 없음");
-    console.log("🔑 인증 KEY 설정 여부:", certKey ? "✅ 설정됨" : "❌ 없음");
+    console.log("🔑 API 키 설정 여부:", apiKey ? "✅ 설정됨" : "❌ 없음");
     console.log("🔗 API 엔드포인트:", BASE_URL);
 
     // 오늘 날짜 (YYYYMMDD 형식)
@@ -96,33 +89,22 @@ export async function getMarketPrices(
     const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
     console.log("📅 기준일자:", todayStr);
 
-    // KAMIS API 파라미터 구성
-    // action=dailySalesList: 일일 도매가격 조회
-    // product_cls_code: 01=소매, 02=도매 (도매가격 조회를 위해 02 사용)
+    // 공공데이터포털 API 파라미터 구성
     const params = new URLSearchParams({
-      action: "dailySalesList", // 일일 도매가격 조회
-      p_cert_id: certId, // KAMIS 회원 아이디
-      p_cert_key: certKey, // KAMIS API 인증키
-      p_returntype: "json", // JSON 형식으로 응답 받기
-      p_productname: productName, // 상품명
-      p_itemname: productName, // 품목명 (상품명과 동일하게 설정)
-      p_countycode: "", // 지역코드 (전체: 빈 문자열)
-      p_convert_kg_yn: "Y", // kg 단위로 변환
-      p_product_cls_code: "02", // 02=도매가격 (01=소매가격)
+      serviceKey: apiKey, // 공공데이터포털 API 키
+      pageNo: "1", // 페이지 번호
+      numOfRows: "100", // 한 번에 가져올 데이터 수
+      dataType: "JSON", // JSON 형식
+      trgDate: todayStr, // 조회 날짜 (YYYYMMDD)
     });
 
     const url = `${BASE_URL}?${params.toString()}`;
-    console.log(
-      "🔗 API 호출 URL (인증키 마스킹):",
-      url.replace(certId, "***").replace(certKey, "***"),
-    );
+    console.log("🔗 API 호출 URL (인증키 마스킹):", url.replace(apiKey, "***"));
     console.log("📋 요청 파라미터:", {
-      action: "dailySalesList",
-      p_productname: productName,
-      p_itemname: productName,
-      p_countycode: "",
-      p_convert_kg_yn: "Y",
-      p_returntype: "json",
+      pageNo: "1",
+      numOfRows: "100",
+      dataType: "JSON",
+      trgDate: todayStr,
     });
 
     let allPrices: MarketPrice[] = [];
@@ -188,8 +170,8 @@ export async function getMarketPrices(
         throw new Error("응답 파싱 실패");
       }
 
-      // KAMIS API 응답 구조 파싱
-      // KAMIS API 응답 구조: { data: { item: [...] } } 또는 { item: [...] }
+      // 공공데이터포털 API 응답 구조 파싱
+      // 공공데이터포털 API 응답 구조: { response: { body: { items: { item: [...] } } } }
       const prices: MarketPrice[] = [];
 
       // 응답 구조 확인 및 로깅
@@ -198,39 +180,13 @@ export async function getMarketPrices(
         JSON.stringify(data, null, 2).substring(0, 2000),
       );
 
-      // KAMIS API 응답 구조 확인
+      // 공공데이터포털 API 응답 구조 확인
       let items: any[] = [];
       let resultCode = "";
       let errorMsg = "";
 
-      // 응답 구조 1: price 배열 (KAMIS 실제 응답 형식)
-      if (Array.isArray(data?.price)) {
-        items = data.price;
-        resultCode = data.error_code || "";
-        errorMsg = data.error_msg || "";
-        console.log(`📦 KAMIS price 배열에서 ${items.length}개 아이템 발견`);
-      }
-      // 응답 구조 2: data.item (KAMIS 표준 형식)
-      else if (data?.data?.item) {
-        items = Array.isArray(data.data.item)
-          ? data.data.item
-          : [data.data.item];
-        resultCode = data.data.error_code || "";
-        errorMsg = data.data.error_msg || "";
-        console.log(`📦 KAMIS data.item에서 ${items.length}개 아이템 발견`);
-      }
-      // 응답 구조 3: item (직접 배열)
-      else if (Array.isArray(data?.item)) {
-        items = data.item;
-        console.log(`📦 item 배열에서 ${items.length}개 아이템 발견`);
-      }
-      // 응답 구조 4: data가 배열인 경우
-      else if (Array.isArray(data?.data)) {
-        items = data.data;
-        console.log(`📦 data 배열에서 ${items.length}개 아이템 발견`);
-      }
-      // 응답 구조 5: response.body.items.item (공공데이터포털 형식 - 하위 호환성)
-      else if (data?.response?.body?.items?.item) {
+      // 응답 구조: response.body.items.item (공공데이터포털 표준 형식)
+      if (data?.response?.body?.items?.item) {
         items = Array.isArray(data.response.body.items.item)
           ? data.response.body.items.item
           : [data.response.body.items.item];
@@ -238,7 +194,7 @@ export async function getMarketPrices(
         errorMsg = data.response?.header?.resultMsg || "";
         console.log(`📦 공공데이터포털 형식에서 ${items.length}개 아이템 발견`);
       }
-      // 응답 구조 6: body.items.item
+      // 하위 호환성: 다른 응답 구조도 지원
       else if (data?.body?.items?.item) {
         items = Array.isArray(data.body.items.item)
           ? data.body.items.item
@@ -247,8 +203,20 @@ export async function getMarketPrices(
         errorMsg = data.header?.resultMsg || "";
         console.log(`📦 body.items.item에서 ${items.length}개 아이템 발견`);
       }
+      // 하위 호환성: KAMIS 형식도 지원
+      else if (data?.data?.item) {
+        items = Array.isArray(data.data.item)
+          ? data.data.item
+          : [data.data.item];
+        resultCode = data.data.error_code || "";
+        errorMsg = data.data.error_msg || "";
+        console.log(`📦 KAMIS data.item에서 ${items.length}개 아이템 발견`);
+      } else if (Array.isArray(data?.item)) {
+        items = data.item;
+        console.log(`📦 item 배열에서 ${items.length}개 아이템 발견`);
+      }
 
-      // 결과 코드 확인
+      // 결과 코드 확인 (공공데이터포털: "0"이 정상)
       if (
         resultCode &&
         resultCode !== "00" &&
@@ -261,7 +229,8 @@ export async function getMarketPrices(
           errorMsg.includes("no data") ||
           errorMsg.includes("데이터 없음") ||
           errorMsg.includes("NODATA") ||
-          errorMsg.includes("조회된 데이터가 없습니다")
+          errorMsg.includes("조회된 데이터가 없습니다") ||
+          errorMsg.includes("결과가 없습니다")
         ) {
           console.log("📭 데이터 없음");
           console.groupEnd();
@@ -351,14 +320,13 @@ export async function getMarketPrices(
       }
 
       // item 배열에서 데이터 추출
-      // KAMIS API 응답 필드명:
-      // - 시장명: p_marketname, marketname, whsalMrktNm 등
-      // - 상품명: productName, item_name, p_itemname, itemname 등
-      // - 가격: dpr1 (당일가격), p_price, price, amt 등
-      // - 등급: p_grade, grade, rank 등
-      // - 단위: unit, p_unitname, unitname, stdUnit 등
-      // - 날짜: lastest_day, p_regday, regday, baseDate 등
-      // - 가격 구분: product_cls_code (01=소매, 02=도매)
+      // 공공데이터포털 API 응답 필드명:
+      // - 시장명: whsl_mrkt_nm
+      // - 상품명: corp_gds_item_nm
+      // - 가격: scsbd_prc (성사단가)
+      // - 등급: gds_sclsf_nm (상세분류명) 또는 grade
+      // - 단위: unit_nm, unit_qty
+      // - 날짜: trd_clcln_ymd (거래결정연월일), scsbd_dt (성사일시)
       items.forEach((item: any) => {
         if (item) {
           // 배열에서 값 추출 헬퍼 함수
@@ -370,15 +338,9 @@ export async function getMarketPrices(
             return value ? String(value) : fallback;
           };
 
-          // 도매가격만 필터링 (product_cls_code가 "02"인 것만)
-          const productClsCode = getValue(item.product_cls_code);
-          if (productClsCode && productClsCode !== "02") {
-            // 도매가격이 아니면 건너뛰기
-            return;
-          }
-
           // 상품명 필터링: 검색한 상품명과 일치하는 것만
           const itemNameValue =
+            getValue(item.corp_gds_item_nm) || // 공공데이터포털 필드명 (우선)
             getValue(item.productName) ||
             getValue(item.item_name) ||
             getValue(item.p_itemname) ||
@@ -402,10 +364,9 @@ export async function getMarketPrices(
             return;
           }
 
-          // 시장명: KAMIS API 필드명 (실제 응답에 시장명이 없을 수 있음)
-          // dailySalesList는 시장별 정보를 제공하지 않을 수 있으므로,
-          // 카테고리명이나 지역 정보를 사용하거나 "전국 평균"으로 표시
+          // 시장명: 공공데이터포털 API 필드명
           const marketName =
+            getValue(item.whsl_mrkt_nm) || // 공공데이터포털 필드명 (우선)
             getValue(item.p_marketname) ||
             getValue(item.marketname) ||
             getValue(item.marketName) ||
@@ -413,8 +374,6 @@ export async function getMarketPrices(
             getValue(item.mrktNm) ||
             getValue(item.countyname) ||
             getValue(item.p_countyname) ||
-            getValue(item.category_name) || // 카테고리명 사용 (예: "식량작물", "채소류")
-            getValue(item.product_cls_name) || // 도매/소매 구분 사용 (예: "도매", "소매")
             "전국 평균"; // 시장명이 없으면 "전국 평균"으로 표시
 
           // 상품명이 없거나 빈 문자열인 경우 건너뛰기 (유효한 상품명만 표시)
@@ -454,22 +413,34 @@ export async function getMarketPrices(
             }
           }
 
-          // 단위: KAMIS API 필드명
-          const unitField =
-            getValue(item.unit) || // KAMIS unit 필드 (우선)
-            getValue(item.p_unitname) ||
-            getValue(item.unitname) ||
-            getValue(item.stdUnit) ||
-            getValue(item.stdQtt) ||
-            getValue(item.p_unit);
-          if (unitField && unitField !== unit) {
-            // 단위 필드가 있으면 우선 사용
-            unit = unitField;
+          // 단위: 공공데이터포털 API 필드명
+          const unitNm = getValue(item.unit_nm); // 단위명 (예: "kg")
+          const unitQty = getValue(item.unit_qty); // 단위 수량 (예: "1.000")
+
+          // 단위 필드가 있으면 우선 사용
+          if (unitNm) {
+            if (unitQty && unitQty !== "1.000" && unitQty !== "1") {
+              unit = `${unitQty}${unitNm}`;
+            } else {
+              unit = `1${unitNm}`;
+            }
+          } else {
+            // 하위 호환성: KAMIS 필드명도 지원
+            const unitField =
+              getValue(item.unit) ||
+              getValue(item.p_unitname) ||
+              getValue(item.unitname) ||
+              getValue(item.stdUnit) ||
+              getValue(item.stdQtt) ||
+              getValue(item.p_unit);
+            if (unitField && unitField !== unit) {
+              unit = unitField;
+            }
           }
 
-          // 등급: KAMIS API 필드명 (p_ 접두사 우선)
-          // productName이나 item_name에서 등급 정보 추출 시도
+          // 등급: 공공데이터포털 API 필드명
           let grade =
+            getValue(item.gds_sclsf_nm) || // 상세분류명 (공공데이터포털, 우선)
             getValue(item.p_grade) ||
             getValue(item.grade) ||
             getValue(item.rank) ||
@@ -477,10 +448,13 @@ export async function getMarketPrices(
             getValue(item.productrank) ||
             "";
 
-          // 등급이 없으면 productName이나 item_name에서 추출 시도
+          // 등급이 없으면 상품명이나 상세분류명에서 추출 시도
           if (!grade || grade === "") {
             const productNameForGrade =
-              getValue(item.productName) || getValue(item.item_name) || "";
+              getValue(item.corp_gds_item_nm) ||
+              getValue(item.productName) ||
+              getValue(item.item_name) ||
+              "";
             // "사과/부사", "사과/후지" 등에서 등급 추출
             if (productNameForGrade.includes("/")) {
               const parts = productNameForGrade.split("/");
@@ -504,12 +478,13 @@ export async function getMarketPrices(
             }
           }
 
-          // 가격: KAMIS API 필드명
-          // 우선순위: dpr1(당일가격) > p_price(KAMIS) > price > amt(금액) > dpr2(1일전가) > dpr3(1개월전가)
+          // 가격: 공공데이터포털 API 필드명
+          // 우선순위: scsbd_prc(성사단가, 공공데이터포털) > 기타 필드
           let price = 0;
           let usedPriceField = "";
           const priceFields = [
-            { name: "dpr1", value: getValue(item.dpr1) }, // KAMIS 당일 가격 (우선)
+            { name: "scsbd_prc", value: getValue(item.scsbd_prc) }, // 공공데이터포털 성사단가 (우선)
+            { name: "dpr1", value: getValue(item.dpr1) }, // KAMIS 당일 가격
             { name: "p_price", value: getValue(item.p_price) }, // KAMIS 표준 필드
             { name: "price", value: getValue(item.price) },
             { name: "amt", value: getValue(item.amt) },
@@ -585,8 +560,10 @@ export async function getMarketPrices(
             finalUnit = unit || "1kg";
           }
 
-          // 날짜: KAMIS API 필드명
+          // 날짜: 공공데이터포털 API 필드명
           const dateStr =
+            getValue(item.trd_clcln_ymd) || // 거래결정연월일 (공공데이터포털, 우선, YYYY-MM-DD 형식)
+            getValue(item.scsbd_dt) || // 성사일시 (YYYY-MM-DD HH:mm:ss 형식)
             getValue(item.lastest_day) || // KAMIS 최신 날짜 필드
             getValue(item.p_regday) ||
             getValue(item.regday) ||
@@ -594,25 +571,26 @@ export async function getMarketPrices(
             getValue(item.date);
           let date = new Date().toISOString().split("T")[0]; // 기본값: 오늘 날짜
           if (dateStr && dateStr !== "-" && dateStr !== "") {
+            // YYYY-MM-DD 형식인 경우 (공공데이터포털 표준)
+            if (dateStr.includes("-") && dateStr.length >= 10) {
+              date = dateStr.substring(0, 10); // "YYYY-MM-DD" 부분만 추출
+            }
             // YYYYMMDD 형식인 경우
-            if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
+            else if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
               date = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
             }
             // "MM/DD" 형식인 경우
-            else if (dateStr.includes("/")) {
+            else if (dateStr.includes("/") && !dateStr.includes("-")) {
               const year = String(new Date().getFullYear());
               const [month, day] = dateStr.split("/");
               date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
             }
-            // 이미 YYYY-MM-DD 형식인 경우
-            else if (dateStr.includes("-")) {
-              date = dateStr;
-            }
           }
 
-          // 상품명: KAMIS API 필드명 (p_ 접두사 우선)
+          // 상품명: 공공데이터포털 API 필드명
           const productNameFromItem =
             itemNameValue ||
+            getValue(item.corp_gds_item_nm) || // 공공데이터포털 필드명 (우선)
             getValue(item.p_itemname) ||
             getValue(item.p_productname) ||
             getValue(item.productname) ||
@@ -709,7 +687,7 @@ export async function getMarketPrices(
     console.groupEnd();
     return [];
   } catch (error) {
-    console.error("❌ KAMIS Open API 호출 실패:", error);
+    console.error("❌ 공공데이터포털 API 호출 실패:", error);
     console.error(
       "❌ 에러 타입:",
       error instanceof Error ? error.constructor.name : typeof error,
