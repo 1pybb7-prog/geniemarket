@@ -36,14 +36,15 @@ import { getServiceRoleClient } from "@/lib/supabase/service-role";
  */
 
 /**
- * GET /api/market-prices?productName={상품명}
+ * GET /api/market-prices?productName={상품명}&region={지역}
  * 공영도매시장 실시간 경매 가격 조회
  *
- * KAMIS API의 dailyPriceByCategoryList 액션을 사용하여
+ * 공공데이터포털 API를 사용하여
  * 오늘 날짜의 실시간 경매 가격 정보를 조회합니다.
  *
  * Query Parameters:
  * - productName: 조회할 상품명 (필수, 예: "청양고추", "배추", "사과")
+ * - region: 지역 필터 (선택, 예: "서울", "경기", "강원")
  *
  * Response:
  * {
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
     // 쿼리 파라미터 추출
     const searchParams = request.nextUrl.searchParams;
     const productName = searchParams.get("productName");
+    const region = searchParams.get("region"); // 선택적 지역 필터
 
     if (!productName || typeof productName !== "string") {
       console.error("❌ productName 쿼리 파라미터가 누락되었습니다.");
@@ -70,6 +72,9 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("🔍 조회할 상품명:", productName);
+    if (region) {
+      console.log("📍 지역 필터:", region);
+    }
     console.log(
       "🔑 API 키 확인:",
       process.env.AT_MARKET_API_KEY || process.env.PUBLIC_DATA_API_KEY
@@ -85,7 +90,10 @@ export async function GET(request: NextRequest) {
 
     try {
       console.log("📤 getMarketPrices 함수 호출 시작...");
-      apiMarketPrices = await getMarketPrices(productName);
+      apiMarketPrices = await getMarketPrices(
+        productName,
+        region || undefined,
+      );
       clearTimeout(timeoutId);
       console.log(
         `📊 getMarketPrices 결과: ${apiMarketPrices.length}개 시세 조회됨`,

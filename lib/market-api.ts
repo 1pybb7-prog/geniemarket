@@ -41,19 +41,27 @@ export interface MarketPrice {
  * 오늘 날짜의 실시간 경매 가격 정보를 조회합니다.
  *
  * @param productName - 조회할 상품명 (예: "청양고추", "배추", "사과")
+ * @param region - 선택적 지역 필터 (예: "서울", "경기", "강원")
  * @returns 시세 정보 배열 (실패 시 빈 배열 반환)
  *
  * @example
  * ```ts
  * const prices = await getMarketPrices("청양고추");
  * console.log(prices); // [{ marketName: "가락시장", price: 9200, date: "2025-01-15", ... }, ...]
+ *
+ * const seoulPrices = await getMarketPrices("청양고추", "서울");
+ * console.log(seoulPrices); // 서울 지역 시장만 필터링된 결과
  * ```
  */
 export async function getMarketPrices(
   productName: string,
+  region?: string,
 ): Promise<MarketPrice[]> {
   console.group("📊 공공데이터포털 API: 시세 조회 시작");
   console.log("🔍 상품명:", productName);
+  if (region) {
+    console.log("📍 지역 필터:", region);
+  }
 
   try {
     // 공공데이터포털 API 인증 정보
@@ -90,175 +98,233 @@ export async function getMarketPrices(
     console.log("📅 기준일자:", todayStr);
 
     // 공공데이터포털 API 파라미터 구성
-    const params = new URLSearchParams({
-      serviceKey: apiKey, // 공공데이터포털 API 키
-      pageNo: "1", // 페이지 번호
-      numOfRows: "100", // 한 번에 가져올 데이터 수
-      dataType: "JSON", // JSON 형식
-      trgDate: todayStr, // 조회 날짜 (YYYYMMDD)
-    });
+    // 여러 페이지를 조회하여 더 많은 데이터를 가져옴 (최대 5페이지, 각 500개 = 최대 2500개)
+    const MAX_PAGES = 5;
+    const ROWS_PER_PAGE = 500;
 
-    const url = `${BASE_URL}?${params.toString()}`;
-    console.log("🔗 API 호출 URL (인증키 마스킹):", url.replace(apiKey, "***"));
-    console.log("📋 요청 파라미터:", {
-      pageNo: "1",
-      numOfRows: "100",
-      dataType: "JSON",
-      trgDate: todayStr,
-    });
-
-    let allPrices: MarketPrice[] = [];
+    let allItems: any[] = [];
     let lastError: Error | null = null;
+    let totalCount = 0;
 
-    try {
-      console.log("🚀 API 호출 시작...");
-      const startTime = Date.now();
-
-      // API 호출
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json, application/xml, text/xml, */*",
-        },
-      });
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      console.log(`⏱️ API 호출 완료 (소요 시간: ${duration}ms)`);
-      console.log("📥 API 응답 상태:", response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn("⚠️ API 호출 실패:", errorText.substring(0, 500));
-        throw new Error(
-          `API 호출 실패: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      // 응답 Content-Type 확인
-      const contentType = response.headers.get("content-type") || "";
-      console.log("📄 Content-Type:", contentType);
-
-      // 응답 본문 읽기
-      const responseText = await response.text();
-      console.log(
-        "📄 응답 본문 (처음 1000자):",
-        responseText.substring(0, 1000),
-      );
-
-      let data: any;
-
-      // JSON 파싱 시도
+    // 여러 페이지를 순회하며 데이터 수집
+    for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
       try {
-        data = JSON.parse(responseText);
-        console.log("✅ JSON 응답 수신");
+        const params = new URLSearchParams({
+          serviceKey: apiKey, // 공공데이터포털 API 키
+          pageNo: String(pageNo), // 페이지 번호
+          numOfRows: String(ROWS_PER_PAGE), // 한 번에 가져올 데이터 수
+          dataType: "JSON", // JSON 형식
+          trgDate: todayStr, // 조회 날짜 (YYYYMMDD)
+        });
+
+        const url = `${BASE_URL}?${params.toString()}`;
+
+        if (pageNo === 1) {
+          console.log(
+            "🔗 API 호출 URL (인증키 마스킹):",
+            url.replace(apiKey, "***"),
+          );
+          console.log("📋 요청 파라미터:", {
+            pageNo: "1~" + MAX_PAGES,
+            numOfRows: ROWS_PER_PAGE,
+            dataType: "JSON",
+            trgDate: todayStr,
+          });
+        }
+
+        console.log(`🚀 API 호출 시작... (페이지 ${pageNo}/${MAX_PAGES})`);
+        const startTime = Date.now();
+
+        // API 호출
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Accept: "application/json, application/xml, text/xml, */*",
+          },
+        });
+
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        console.log(`⏱️ API 호출 완료 (소요 시간: ${duration}ms)`);
+        console.log("📥 API 응답 상태:", response.status, response.statusText);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn("⚠️ API 호출 실패:", errorText.substring(0, 500));
+          throw new Error(
+            `API 호출 실패: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        // 응답 Content-Type 확인
+        const contentType = response.headers.get("content-type") || "";
+        console.log("📄 Content-Type:", contentType);
+
+        // 응답 본문 읽기
+        const responseText = await response.text();
         console.log(
-          "📊 응답 구조:",
+          "📄 응답 본문 (처음 1000자):",
+          responseText.substring(0, 1000),
+        );
+
+        let data: any;
+
+        // JSON 파싱 시도
+        try {
+          data = JSON.parse(responseText);
+          console.log("✅ JSON 응답 수신");
+          console.log(
+            "📊 응답 구조:",
+            JSON.stringify(data, null, 2).substring(0, 2000),
+          );
+        } catch (parseError) {
+          // JSON 파싱 실패 시 XML인지 확인
+          if (contentType.includes("xml") || contentType.includes("text/xml")) {
+            console.warn("⚠️ XML 응답 (XML 파싱은 추후 구현 필요)");
+            console.warn(
+              "💡 공공데이터포털 API에서 resultType=json 파라미터를 확인하세요.",
+            );
+          } else {
+            console.error("❌ JSON 파싱 실패:", parseError);
+            console.warn("📄 원본 응답:", responseText.substring(0, 1000));
+          }
+          throw new Error("응답 파싱 실패");
+        }
+
+        // 공공데이터포털 API 응답 구조 파싱
+        // 공공데이터포털 API 응답 구조: { response: { body: { items: { item: [...] } } } }
+        const prices: MarketPrice[] = [];
+
+        // 응답 구조 확인 및 로깅
+        console.log(
+          "🔍 응답 데이터 구조 분석:",
           JSON.stringify(data, null, 2).substring(0, 2000),
         );
-      } catch (parseError) {
-        // JSON 파싱 실패 시 XML인지 확인
-        if (contentType.includes("xml") || contentType.includes("text/xml")) {
-          console.warn("⚠️ XML 응답 (XML 파싱은 추후 구현 필요)");
-          console.warn(
-            "💡 공공데이터포털 API에서 resultType=json 파라미터를 확인하세요.",
+
+        // 공공데이터포털 API 응답 구조 확인
+        let items: any[] = [];
+        let resultCode = "";
+        let errorMsg = "";
+
+        // 응답 구조: response.body.items.item (공공데이터포털 표준 형식)
+        if (data?.response?.body?.items?.item) {
+          items = Array.isArray(data.response.body.items.item)
+            ? data.response.body.items.item
+            : [data.response.body.items.item];
+          resultCode = data.response?.header?.resultCode || "";
+          errorMsg = data.response?.header?.resultMsg || "";
+          console.log(
+            `📦 공공데이터포털 형식에서 ${items.length}개 아이템 발견`,
           );
-        } else {
-          console.error("❌ JSON 파싱 실패:", parseError);
-          console.warn("📄 원본 응답:", responseText.substring(0, 1000));
         }
-        throw new Error("응답 파싱 실패");
-      }
+        // 하위 호환성: 다른 응답 구조도 지원
+        else if (data?.body?.items?.item) {
+          items = Array.isArray(data.body.items.item)
+            ? data.body.items.item
+            : [data.body.items.item];
+          resultCode = data.header?.resultCode || "";
+          errorMsg = data.header?.resultMsg || "";
+          console.log(`📦 body.items.item에서 ${items.length}개 아이템 발견`);
+        }
+        // 하위 호환성: KAMIS 형식도 지원
+        else if (data?.data?.item) {
+          items = Array.isArray(data.data.item)
+            ? data.data.item
+            : [data.data.item];
+          resultCode = data.data.error_code || "";
+          errorMsg = data.data.error_msg || "";
+          console.log(`📦 KAMIS data.item에서 ${items.length}개 아이템 발견`);
+        } else if (Array.isArray(data?.item)) {
+          items = data.item;
+          console.log(`📦 item 배열에서 ${items.length}개 아이템 발견`);
+        }
 
-      // 공공데이터포털 API 응답 구조 파싱
-      // 공공데이터포털 API 응답 구조: { response: { body: { items: { item: [...] } } } }
-      const prices: MarketPrice[] = [];
-
-      // 응답 구조 확인 및 로깅
-      console.log(
-        "🔍 응답 데이터 구조 분석:",
-        JSON.stringify(data, null, 2).substring(0, 2000),
-      );
-
-      // 공공데이터포털 API 응답 구조 확인
-      let items: any[] = [];
-      let resultCode = "";
-      let errorMsg = "";
-
-      // 응답 구조: response.body.items.item (공공데이터포털 표준 형식)
-      if (data?.response?.body?.items?.item) {
-        items = Array.isArray(data.response.body.items.item)
-          ? data.response.body.items.item
-          : [data.response.body.items.item];
-        resultCode = data.response?.header?.resultCode || "";
-        errorMsg = data.response?.header?.resultMsg || "";
-        console.log(`📦 공공데이터포털 형식에서 ${items.length}개 아이템 발견`);
-      }
-      // 하위 호환성: 다른 응답 구조도 지원
-      else if (data?.body?.items?.item) {
-        items = Array.isArray(data.body.items.item)
-          ? data.body.items.item
-          : [data.body.items.item];
-        resultCode = data.header?.resultCode || "";
-        errorMsg = data.header?.resultMsg || "";
-        console.log(`📦 body.items.item에서 ${items.length}개 아이템 발견`);
-      }
-      // 하위 호환성: KAMIS 형식도 지원
-      else if (data?.data?.item) {
-        items = Array.isArray(data.data.item)
-          ? data.data.item
-          : [data.data.item];
-        resultCode = data.data.error_code || "";
-        errorMsg = data.data.error_msg || "";
-        console.log(`📦 KAMIS data.item에서 ${items.length}개 아이템 발견`);
-      } else if (Array.isArray(data?.item)) {
-        items = data.item;
-        console.log(`📦 item 배열에서 ${items.length}개 아이템 발견`);
-      }
-
-      // 결과 코드 확인 (공공데이터포털: "0"이 정상)
-      if (
-        resultCode &&
-        resultCode !== "00" &&
-        resultCode !== "000" &&
-        resultCode !== "0" &&
-        resultCode !== ""
-      ) {
-        console.warn("⚠️ API 에러 코드:", resultCode, errorMsg || "알 수 없음");
+        // 결과 코드 확인 (공공데이터포털: "0"이 정상)
         if (
-          errorMsg.includes("no data") ||
-          errorMsg.includes("데이터 없음") ||
-          errorMsg.includes("NODATA") ||
-          errorMsg.includes("조회된 데이터가 없습니다") ||
-          errorMsg.includes("결과가 없습니다")
+          resultCode &&
+          resultCode !== "00" &&
+          resultCode !== "000" &&
+          resultCode !== "0" &&
+          resultCode !== ""
         ) {
-          console.log("📭 데이터 없음");
-          console.groupEnd();
-          return [];
+          console.warn(
+            "⚠️ API 에러 코드:",
+            resultCode,
+            errorMsg || "알 수 없음",
+          );
+          if (
+            errorMsg.includes("no data") ||
+            errorMsg.includes("데이터 없음") ||
+            errorMsg.includes("NODATA") ||
+            errorMsg.includes("조회된 데이터가 없습니다") ||
+            errorMsg.includes("결과가 없습니다")
+          ) {
+            if (pageNo === 1) {
+              console.log("📭 데이터 없음");
+              console.groupEnd();
+              return [];
+            }
+            break; // 첫 페이지가 아니면 중단
+          }
         }
+
+        if (items.length === 0) {
+          if (pageNo === 1) {
+            console.warn("⚠️ 응답에 데이터가 없습니다.");
+            console.groupEnd();
+            return [];
+          }
+          break; // 첫 페이지가 아니면 중단
+        }
+
+        // 아이템을 전체 배열에 추가
+        allItems = allItems.concat(items);
+
+        // 더 이상 데이터가 없으면 중단
+        if (items.length < ROWS_PER_PAGE) {
+          console.log(`✅ 모든 데이터 수집 완료 (총 ${allItems.length}개)`);
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ 페이지 ${pageNo} 처리 중 오류 발생:`, error);
+        if (pageNo === 1) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+        }
+        // 첫 페이지가 아니면 계속 진행
+        if (pageNo === 1) {
+          throw error;
+        }
+        break;
       }
+    }
 
-      if (items.length === 0) {
-        console.warn("⚠️ 응답에 데이터가 없습니다.");
-        console.warn("💡 가능한 원인:");
-        console.warn("  1. 해당 상품명으로 시세 데이터가 없음");
-        console.warn("  2. API 파라미터가 잘못됨 (상품명, 날짜 등)");
-        console.warn("  3. API 엔드포인트가 잘못됨");
-        console.warn("  4. API 키가 유효하지 않음");
-        console.groupEnd();
-        return [];
-      }
+    // 모든 페이지에서 수집한 데이터 처리
+    const items = allItems;
+    console.log(`📦 전체 수집된 데이터: ${items.length}개 아이템`);
 
-      console.log(`📦 응답 데이터: ${items.length}개 아이템 발견`);
+    if (items.length === 0) {
+      console.warn("⚠️ 응답에 데이터가 없습니다.");
+      console.warn("💡 가능한 원인:");
+      console.warn("  1. 해당 날짜에 시세 데이터가 없음");
+      console.warn("  2. API 파라미터가 잘못됨 (날짜 등)");
+      console.warn("  3. API 엔드포인트가 잘못됨");
+      console.warn("  4. API 키가 유효하지 않음");
+      console.groupEnd();
+      return [];
+    }
 
-      // 첫 번째 아이템의 실제 필드명 확인 (디버깅용)
+    // 공공데이터포털 API 응답 구조 파싱
+    const prices: MarketPrice[] = [];
+
+    try {
+      // 첫 번째 아이템의 실제 필드명 확인 (디버깅용 - 첫 페이지만)
       if (items.length > 0) {
         const firstItem = items[0];
+        console.log("📋 첫 번째 아이템의 모든 필드명:", Object.keys(firstItem));
         console.log(
           "📊 첫 번째 아이템 샘플 (전체):",
           JSON.stringify(firstItem, null, 2),
         );
-        console.log("📋 첫 번째 아이템의 모든 필드명:", Object.keys(firstItem));
 
         // 모든 필드의 값 출력 (상세 디버깅)
         console.log("📋 모든 필드 값:");
@@ -339,6 +405,7 @@ export async function getMarketPrices(
           };
 
           // 상품명 필터링: 검색한 상품명과 일치하는 것만
+          // 여러 필드를 확인하여 더 넓은 범위로 검색
           const itemNameValue =
             getValue(item.corp_gds_item_nm) || // 공공데이터포털 필드명 (우선)
             getValue(item.productName) ||
@@ -349,17 +416,41 @@ export async function getMarketPrices(
             getValue(item.prdlstNm) ||
             getValue(item.prdltNm);
 
+          // 중분류명, 상세분류명도 검색 대상에 포함
+          const middleCategoryName = getValue(item.gds_mclsf_nm); // 중분류명 (예: "사과", "감귤")
+          const detailCategoryName = getValue(item.gds_sclsf_nm); // 상세분류명
+          const varietyName = getValue(item.corp_gds_vrty_nm); // 품종명
+
           // 상품명이 검색어와 일치하는지 확인 (부분 일치 허용)
+          // 여러 필드를 모두 확인하여 매칭
           const normalizedItemName = itemNameValue
+            .toLowerCase()
+            .replace(/\s+/g, "");
+          const normalizedMiddleCategory = middleCategoryName
+            .toLowerCase()
+            .replace(/\s+/g, "");
+          const normalizedDetailCategory = detailCategoryName
+            .toLowerCase()
+            .replace(/\s+/g, "");
+          const normalizedVariety = varietyName
             .toLowerCase()
             .replace(/\s+/g, "");
           const normalizedProductName = productName
             .toLowerCase()
             .replace(/\s+/g, "");
-          if (
-            !normalizedItemName.includes(normalizedProductName) &&
-            !normalizedProductName.includes(normalizedItemName)
-          ) {
+
+          // 상품명, 중분류명, 상세분류명, 품종명 중 하나라도 일치하면 포함
+          const isMatch =
+            normalizedItemName.includes(normalizedProductName) ||
+            normalizedProductName.includes(normalizedItemName) ||
+            normalizedMiddleCategory.includes(normalizedProductName) ||
+            normalizedProductName.includes(normalizedMiddleCategory) ||
+            normalizedDetailCategory.includes(normalizedProductName) ||
+            normalizedProductName.includes(normalizedDetailCategory) ||
+            normalizedVariety.includes(normalizedProductName) ||
+            normalizedProductName.includes(normalizedVariety);
+
+          if (!isMatch) {
             // 상품명이 일치하지 않으면 건너뛰기
             return;
           }
@@ -379,6 +470,212 @@ export async function getMarketPrices(
           // 상품명이 없거나 빈 문자열인 경우 건너뛰기 (유효한 상품명만 표시)
           if (!itemNameValue || itemNameValue.trim() === "") {
             return;
+          }
+
+          // 지역 필터링: region이 지정된 경우 시장명에서 지역 확인
+          if (region && region.trim() !== "") {
+            const normalizedRegion = region.trim();
+            const normalizedMarketName = marketName.toLowerCase();
+
+            // 시장명-지역 매핑 (주요 시장 기준)
+            const marketRegionMap: Record<string, string[]> = {
+              서울: ["가락", "강서", "청과", "농수산", "서울"],
+              부산: ["부산", "서부산", "동부산"],
+              대구: ["대구", "서문"],
+              인천: ["인천", "남인천"],
+              광주: ["광주", "무등"],
+              대전: ["대전", "유성"],
+              울산: ["울산"],
+              경기: [
+                "수원",
+                "안양",
+                "고양",
+                "성남",
+                "용인",
+                "부천",
+                "안산",
+                "평택",
+                "시흥",
+                "김포",
+                "광명",
+                "하남",
+                "이천",
+                "오산",
+                "의정부",
+                "안성",
+                "구리",
+                "남양주",
+                "화성",
+                "광주시",
+                "양주",
+                "포천",
+                "여주",
+                "연천",
+                "가평",
+                "양평",
+                "경기",
+              ],
+              강원: [
+                "강릉",
+                "춘천",
+                "원주",
+                "속초",
+                "삼척",
+                "태백",
+                "동해",
+                "영월",
+                "평창",
+                "정선",
+                "철원",
+                "화천",
+                "양구",
+                "인제",
+                "고성",
+                "양양",
+                "홍천",
+                "횡성",
+                "영동",
+                "강원",
+              ],
+              충북: [
+                "청주",
+                "충주",
+                "제천",
+                "보은",
+                "옥천",
+                "영동",
+                "증평",
+                "진천",
+                "괴산",
+                "음성",
+                "단양",
+                "충북",
+              ],
+              충남: [
+                "천안",
+                "아산",
+                "서산",
+                "당진",
+                "공주",
+                "보령",
+                "계룡",
+                "논산",
+                "부여",
+                "서천",
+                "청양",
+                "홍성",
+                "예산",
+                "태안",
+                "금산",
+                "충남",
+              ],
+              전북: [
+                "전주",
+                "익산",
+                "정읍",
+                "남원",
+                "김제",
+                "완주",
+                "진안",
+                "무주",
+                "장수",
+                "임실",
+                "순창",
+                "고창",
+                "부안",
+                "전북",
+              ],
+              전남: [
+                "목포",
+                "여수",
+                "순천",
+                "나주",
+                "광양",
+                "담양",
+                "곡성",
+                "구례",
+                "고흥",
+                "보성",
+                "화순",
+                "장흥",
+                "강진",
+                "해남",
+                "영암",
+                "무안",
+                "함평",
+                "영광",
+                "장성",
+                "완도",
+                "진도",
+                "신안",
+                "전남",
+              ],
+              경북: [
+                "포항",
+                "경주",
+                "김천",
+                "안동",
+                "구미",
+                "영주",
+                "영천",
+                "상주",
+                "문경",
+                "경산",
+                "군위",
+                "의성",
+                "청송",
+                "영양",
+                "영덕",
+                "청도",
+                "고령",
+                "성주",
+                "칠곡",
+                "예천",
+                "봉화",
+                "울진",
+                "울릉",
+                "경북",
+              ],
+              경남: [
+                "창원",
+                "마산",
+                "진해",
+                "진주",
+                "통영",
+                "사천",
+                "김해",
+                "밀양",
+                "거제",
+                "양산",
+                "의령",
+                "함안",
+                "창녕",
+                "고성",
+                "남해",
+                "하동",
+                "산청",
+                "함양",
+                "거창",
+                "합천",
+                "경남",
+              ],
+              제주: ["제주", "서귀포"],
+            };
+
+            // 지역에 해당하는 시장명 키워드 확인
+            const regionKeywords = marketRegionMap[normalizedRegion] || [
+              normalizedRegion,
+            ];
+
+            // 시장명에 지역 키워드가 포함되어 있는지 확인
+            const matchesRegion = regionKeywords.some((keyword) =>
+              normalizedMarketName.includes(keyword.toLowerCase()),
+            );
+
+            if (!matchesRegion) {
+              // 지역이 일치하지 않으면 건너뛰기
+              return;
+            }
           }
 
           // 등급: kindname에서 추출하거나 기본값
@@ -610,32 +907,33 @@ export async function getMarketPrices(
         }
       });
 
-      allPrices = prices;
-      console.log(`✅ 최종 파싱된 시세: ${allPrices.length}개`);
-    } catch (error) {
-      console.error("❌ API 처리 중 오류 발생");
+      console.log(`✅ 최종 파싱된 시세: ${prices.length}개`);
+    } catch (parseError) {
+      console.error("❌ 데이터 파싱 중 오류 발생");
       console.error(
         "에러 타입:",
-        error instanceof Error ? error.constructor.name : typeof error,
+        parseError instanceof Error
+          ? parseError.constructor.name
+          : typeof parseError,
       );
       console.error(
         "에러 메시지:",
-        error instanceof Error ? error.message : String(error),
+        parseError instanceof Error ? parseError.message : String(parseError),
       );
-      if (error instanceof Error && error.stack) {
-        console.error("에러 스택:", error.stack);
+      if (parseError instanceof Error && parseError.stack) {
+        console.error("에러 스택:", parseError.stack);
       }
-      if (error instanceof Error) {
-        lastError = error;
+      if (parseError instanceof Error) {
+        lastError = parseError;
       }
     }
 
     // 결과가 있으면 최신 거래순으로 정렬하여 반환
-    if (allPrices.length > 0) {
-      console.log(`✅ 총 ${allPrices.length}개의 시세 데이터 수집 완료`);
+    if (prices.length > 0) {
+      console.log(`✅ 총 ${prices.length}개의 시세 데이터 수집 완료`);
 
       // 날짜 기준으로 정렬 (최신 날짜가 먼저), 같은 날짜면 시장명 > 등급 > 가격 순으로 정렬
-      allPrices.sort((a, b) => {
+      prices.sort((a, b) => {
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
 
@@ -667,14 +965,14 @@ export async function getMarketPrices(
         return b.price - a.price;
       });
 
-      console.log(`📊 최신 거래순으로 정렬 완료: ${allPrices.length}개`);
+      console.log(`📊 최신 거래순으로 정렬 완료: ${prices.length}개`);
       console.log(
-        `📅 날짜 범위: ${allPrices[allPrices.length - 1]?.date} ~ ${allPrices[0]?.date}`,
+        `📅 날짜 범위: ${prices[prices.length - 1]?.date} ~ ${prices[0]?.date}`,
       );
 
       // 모든 거래를 반환 (중복 제거하지 않음 - 같은 시장에서도 등급별로 여러 거래 표시)
       console.groupEnd();
-      return allPrices;
+      return prices;
     }
 
     // 데이터를 찾지 못한 경우
