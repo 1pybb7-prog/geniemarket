@@ -92,10 +92,16 @@ export async function getMarketPrices(
     console.log("🔑 API 키 설정 여부:", apiKey ? "✅ 설정됨" : "❌ 없음");
     console.log("🔗 API 엔드포인트:", BASE_URL);
 
-    // 오늘 날짜 (YYYYMMDD 형식)
+    // 오늘 날짜 (YYYYMMDD 형식) - 한국 시간대 기준
     const today = new Date();
-    const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
-    console.log("📅 기준일자:", todayStr);
+    // 한국 시간대(KST, UTC+9) 기준으로 날짜 계산
+    const kstOffset = 9 * 60; // 한국은 UTC+9
+    const kstDate = new Date(
+      today.getTime() + (kstOffset - today.getTimezoneOffset()) * 60000,
+    );
+    const todayStr = `${kstDate.getFullYear()}${String(kstDate.getMonth() + 1).padStart(2, "0")}${String(kstDate.getDate()).padStart(2, "0")}`;
+    console.log("📅 기준일자 (KST):", todayStr);
+    console.log("📅 현재 시간 (로컬):", today.toLocaleString("ko-KR"));
 
     // 공공데이터포털 API 파라미터 구성
     // 여러 페이지를 조회하여 더 많은 데이터를 가져옴 (최대 5페이지, 각 500개 = 최대 2500개)
@@ -475,17 +481,21 @@ export async function getMarketPrices(
           // 지역 필터링: region이 지정된 경우 시장명에서 지역 확인
           if (region && region.trim() !== "") {
             const normalizedRegion = region.trim();
-            const normalizedMarketName = marketName.toLowerCase();
+            // 시장명에서 "시장", "도매시장", "공영시장" 등의 단어 제거 후 비교
+            const cleanedMarketName = marketName
+              .replace(/시장|도매시장|공영시장|농수산시장|청과시장/gi, "")
+              .trim();
+            const normalizedMarketName = cleanedMarketName.toLowerCase();
 
-            // 시장명-지역 매핑 (주요 시장 기준)
+            // 시장명-지역 매핑 (주요 시장 기준, 시장명에서 "시장" 단어 제거 후 비교)
             const marketRegionMap: Record<string, string[]> = {
-              서울: ["가락", "강서", "청과", "농수산", "서울"],
-              부산: ["부산", "서부산", "동부산"],
-              대구: ["대구", "서문"],
-              인천: ["인천", "남인천"],
-              광주: ["광주", "무등"],
-              대전: ["대전", "유성"],
-              울산: ["울산"],
+              서울: ["가락", "강서", "청과", "농수산", "서울", "송파", "강동"],
+              부산: ["부산", "서부산", "동부산", "북부산", "남부산"],
+              대구: ["대구", "서문", "북대구", "남대구"],
+              인천: ["인천", "남인천", "북인천", "서인천"],
+              광주: ["광주", "무등", "광주시"],
+              대전: ["대전", "유성", "서대전"],
+              울산: ["울산", "남울산"],
               경기: [
                 "수원",
                 "안양",
@@ -506,7 +516,6 @@ export async function getMarketPrices(
                 "구리",
                 "남양주",
                 "화성",
-                "광주시",
                 "양주",
                 "포천",
                 "여주",
@@ -514,6 +523,10 @@ export async function getMarketPrices(
                 "가평",
                 "양평",
                 "경기",
+                "과천",
+                "군포",
+                "의왕",
+                "동두천",
               ],
               강원: [
                 "강릉",
@@ -534,7 +547,6 @@ export async function getMarketPrices(
                 "양양",
                 "홍천",
                 "횡성",
-                "영동",
                 "강원",
               ],
               충북: [
@@ -543,7 +555,6 @@ export async function getMarketPrices(
                 "제천",
                 "보은",
                 "옥천",
-                "영동",
                 "증평",
                 "진천",
                 "괴산",
@@ -668,13 +679,26 @@ export async function getMarketPrices(
             ];
 
             // 시장명에 지역 키워드가 포함되어 있는지 확인
-            const matchesRegion = regionKeywords.some((keyword) =>
-              normalizedMarketName.includes(keyword.toLowerCase()),
-            );
+            // 정확한 매칭을 위해 키워드가 시장명의 시작 부분에 있는지도 확인
+            const matchesRegion = regionKeywords.some((keyword) => {
+              const lowerKeyword = keyword.toLowerCase();
+              // 시장명이 키워드로 시작하거나, 키워드가 시장명에 포함되어 있는지 확인
+              return (
+                normalizedMarketName.startsWith(lowerKeyword) ||
+                normalizedMarketName.includes(lowerKeyword)
+              );
+            });
 
             if (!matchesRegion) {
               // 지역이 일치하지 않으면 건너뛰기
+              console.log(
+                `🚫 지역 필터링: "${marketName}" (정리: "${cleanedMarketName}")는 "${normalizedRegion}" 지역이 아님 - 제외`,
+              );
               return;
+            } else {
+              console.log(
+                `✅ 지역 필터링: "${marketName}" (정리: "${cleanedMarketName}")는 "${normalizedRegion}" 지역 - 포함`,
+              );
             }
           }
 
@@ -736,17 +760,23 @@ export async function getMarketPrices(
           }
 
           // 등급: 공공데이터포털 API 필드명
+          // 여러 필드에서 등급 정보를 찾음
           let grade =
             getValue(item.gds_sclsf_nm) || // 상세분류명 (공공데이터포털, 우선)
+            getValue(item.gds_mclsf_nm) || // 중분류명 (공공데이터포털)
+            getValue(item.corp_gds_vrty_nm) || // 품종명 (공공데이터포털)
+            getValue(item.kindname) || // 품종명 (KAMIS)
             getValue(item.p_grade) ||
             getValue(item.grade) ||
             getValue(item.rank) ||
             getValue(item.stdPrdlstNm) ||
             getValue(item.productrank) ||
+            getValue(item.quality) ||
+            getValue(item.품질) ||
             "";
 
           // 등급이 없으면 상품명이나 상세분류명에서 추출 시도
-          if (!grade || grade === "") {
+          if (!grade || grade === "" || grade === "-" || grade === "null") {
             const productNameForGrade =
               getValue(item.corp_gds_item_nm) ||
               getValue(item.productName) ||
@@ -759,20 +789,78 @@ export async function getMarketPrices(
                 grade = parts[1].trim(); // "/" 뒤의 부분을 등급으로 사용
               }
             }
-            // kindname에서 "상품", "중품", "하품" 추출
-            if ((!grade || grade === "") && kindNameValue) {
-              if (kindNameValue.includes("상품")) {
+            // kindname에서 "특상", "상품", "중품", "하품" 추출
+            if ((!grade || grade === "" || grade === "-") && kindNameValue) {
+              const normalizedKindName = kindNameValue.toLowerCase();
+              if (
+                normalizedKindName.includes("특상") ||
+                normalizedKindName.includes("특등")
+              ) {
+                grade = "특상";
+              } else if (
+                normalizedKindName.includes("상품") ||
+                normalizedKindName === "상" ||
+                normalizedKindName.includes("상등")
+              ) {
                 grade = "상품";
-              } else if (kindNameValue.includes("중품")) {
+              } else if (
+                normalizedKindName.includes("중품") ||
+                normalizedKindName === "중" ||
+                normalizedKindName.includes("중등")
+              ) {
                 grade = "중품";
-              } else if (kindNameValue.includes("하품")) {
+              } else if (
+                normalizedKindName.includes("하품") ||
+                normalizedKindName === "하" ||
+                normalizedKindName.includes("하등")
+              ) {
+                grade = "하품";
+              }
+            }
+            // 상세분류명에서도 등급 추출 시도
+            if (
+              (!grade || grade === "" || grade === "-") &&
+              detailCategoryName
+            ) {
+              const normalizedDetailCategory = detailCategoryName.toLowerCase();
+              if (
+                normalizedDetailCategory.includes("특상") ||
+                normalizedDetailCategory.includes("특등")
+              ) {
+                grade = "특상";
+              } else if (
+                normalizedDetailCategory.includes("상품") ||
+                normalizedDetailCategory === "상" ||
+                normalizedDetailCategory.includes("상등")
+              ) {
+                grade = "상품";
+              } else if (
+                normalizedDetailCategory.includes("중품") ||
+                normalizedDetailCategory === "중" ||
+                normalizedDetailCategory.includes("중등")
+              ) {
+                grade = "중품";
+              } else if (
+                normalizedDetailCategory.includes("하품") ||
+                normalizedDetailCategory === "하" ||
+                normalizedDetailCategory.includes("하등")
+              ) {
                 grade = "하품";
               }
             }
             // 기본값
-            if (!grade || grade === "") {
+            if (!grade || grade === "" || grade === "-") {
               grade = "일반";
             }
+          }
+
+          // 등급 정보 로깅 (디버깅용 - 처음 몇 개만)
+          // 주의: prices 배열에 추가되기 전이므로 인덱스로 확인
+          const currentIndex = prices.length;
+          if (currentIndex < 3) {
+            console.log(
+              `⭐ 등급 추출 [${currentIndex + 1}]: ${itemNameValue} - 등급: "${grade}" (kindname: "${kindNameValue}", gds_sclsf_nm: "${getValue(item.gds_sclsf_nm)}", gds_mclsf_nm: "${getValue(item.gds_mclsf_nm)}")`,
+            );
           }
 
           // 가격: 공공데이터포털 API 필드명
@@ -866,19 +954,45 @@ export async function getMarketPrices(
             getValue(item.regday) ||
             getValue(item.baseDate) ||
             getValue(item.date);
-          let date = new Date().toISOString().split("T")[0]; // 기본값: 오늘 날짜
+
+          // 기본값: 오늘 날짜 (한국 시간대 기준)
+          const now = new Date();
+          const kstOffset = 9 * 60; // 한국은 UTC+9
+          const kstNow = new Date(
+            now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000,
+          );
+          let date = `${kstNow.getFullYear()}-${String(kstNow.getMonth() + 1).padStart(2, "0")}-${String(kstNow.getDate()).padStart(2, "0")}`;
+
           if (dateStr && dateStr !== "-" && dateStr !== "") {
             // YYYY-MM-DD 형식인 경우 (공공데이터포털 표준)
             if (dateStr.includes("-") && dateStr.length >= 10) {
-              date = dateStr.substring(0, 10); // "YYYY-MM-DD" 부분만 추출
+              const parsedDate = dateStr.substring(0, 10); // "YYYY-MM-DD" 부분만 추출
+              // API 응답 날짜가 오늘보다 미래인 경우 로깅
+              const parsedDateObj = new Date(parsedDate);
+              const todayDateObj = new Date(date);
+              if (parsedDateObj > todayDateObj) {
+                console.warn(
+                  `⚠️ 날짜 경고: API 응답 날짜(${parsedDate})가 오늘(${date})보다 미래입니다.`,
+                );
+              }
+              date = parsedDate;
             }
             // YYYYMMDD 형식인 경우
             else if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
-              date = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+              const parsedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+              // API 응답 날짜가 오늘보다 미래인 경우 로깅
+              const parsedDateObj = new Date(parsedDate);
+              const todayDateObj = new Date(date);
+              if (parsedDateObj > todayDateObj) {
+                console.warn(
+                  `⚠️ 날짜 경고: API 응답 날짜(${parsedDate})가 오늘(${date})보다 미래입니다.`,
+                );
+              }
+              date = parsedDate;
             }
             // "MM/DD" 형식인 경우
             else if (dateStr.includes("/") && !dateStr.includes("-")) {
-              const year = String(new Date().getFullYear());
+              const year = String(kstNow.getFullYear());
               const [month, day] = dateStr.split("/");
               date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
             }

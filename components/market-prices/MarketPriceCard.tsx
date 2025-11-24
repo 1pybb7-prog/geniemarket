@@ -41,28 +41,45 @@ interface MarketPriceCardProps {
 }
 
 export function MarketPriceCard({ marketPrice }: MarketPriceCardProps) {
-  // 등급별 색상
-  const getGradeColor = (grade?: string) => {
-    if (!grade) return "text-gray-600";
-    if (grade.includes("상품")) return "text-green-600";
-    if (grade.includes("중품")) return "text-yellow-600";
-    if (grade.includes("하품")) return "text-red-600";
-    return "text-gray-600";
+  // 등급별 색상 및 배지 스타일
+  const getGradeStyle = (grade?: string) => {
+    if (!grade) return { color: "text-gray-600", bg: "bg-gray-100", label: "일반" };
+    
+    const normalizedGrade = grade.toLowerCase();
+    
+    // 특상, 특등급
+    if (normalizedGrade.includes("특상") || normalizedGrade.includes("특등")) {
+      return { color: "text-purple-700", bg: "bg-purple-100", label: grade };
+    }
+    // 상품, 상
+    if (normalizedGrade.includes("상품") || normalizedGrade === "상") {
+      return { color: "text-green-700", bg: "bg-green-100", label: grade };
+    }
+    // 중품, 중
+    if (normalizedGrade.includes("중품") || normalizedGrade === "중") {
+      return { color: "text-yellow-700", bg: "bg-yellow-100", label: grade };
+    }
+    // 하품, 하
+    if (normalizedGrade.includes("하품") || normalizedGrade === "하") {
+      return { color: "text-red-700", bg: "bg-red-100", label: grade };
+    }
+    
+    return { color: "text-gray-600", bg: "bg-gray-100", label: grade };
   };
+
+  const gradeStyle = getGradeStyle(marketPrice.grade);
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-lg">
       <CardContent className="p-4 space-y-2">
-        {/* 시장명 */}
+        {/* 시장명 및 등급 */}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">{marketPrice.market_name}</h3>
           {marketPrice.grade && (
             <span
-              className={`text-xs font-semibold px-2 py-1 rounded-full ${getGradeColor(
-                marketPrice.grade,
-              )} bg-opacity-10`}
+              className={`text-xs font-bold px-3 py-1.5 rounded-full ${gradeStyle.color} ${gradeStyle.bg} border ${gradeStyle.color.replace("text-", "border-")}`}
             >
-              {marketPrice.grade}
+              {gradeStyle.label}
             </span>
           )}
         </div>
@@ -91,12 +108,12 @@ export function MarketPriceCard({ marketPrice }: MarketPriceCardProps) {
 
         {/* 등급 정보 (명확히 표시) */}
         {marketPrice.grade && marketPrice.grade !== "일반" && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-600">품질 등급:</span>
+          <div className="flex items-center gap-2 text-sm pt-2 border-t">
+            <span className="text-gray-600 font-medium">품질 등급:</span>
             <span
-              className={`font-semibold ${getGradeColor(marketPrice.grade)}`}
+              className={`font-bold ${gradeStyle.color} px-2 py-1 rounded ${gradeStyle.bg}`}
             >
-              {marketPrice.grade}
+              {gradeStyle.label}
             </span>
           </div>
         )}
