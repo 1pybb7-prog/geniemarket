@@ -22,7 +22,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/", label: "홈", icon: Home },
   { href: "/products", label: "상품", icon: Package },
-  { href: "/market-prices", label: "시세", icon: TrendingUp },
+  { href: "/market-prices", label: "시세 (공공데이터)", icon: TrendingUp },
+  { href: "/market-prices/kamis", label: "시세 (KAMIS)", icon: TrendingUp },
   { href: "/orders", label: "주문", icon: FileText },
   { href: "/profile", label: "마이페이지", icon: User },
 ];

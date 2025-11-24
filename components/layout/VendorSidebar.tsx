@@ -24,7 +24,8 @@ const navItems: NavItem[] = [
   { href: "/vendor/products", label: "내 상품", icon: Package },
   { href: "/vendor/products/new", label: "상품 등록", icon: Plus },
   { href: "/vendor/orders", label: "주문 관리", icon: FileText },
-  { href: "/vendor/market-prices", label: "시세 참고", icon: TrendingUp },
+  { href: "/vendor/market-prices", label: "시세 참고 (공공데이터)", icon: TrendingUp },
+  { href: "/vendor/market-prices/kamis", label: "시세 참고 (KAMIS)", icon: TrendingUp },
   { href: "/profile", label: "마이페이지", icon: User },
 ];
 

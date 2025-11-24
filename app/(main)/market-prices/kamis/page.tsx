@@ -1,32 +1,10 @@
 "use client";
 
 /**
- * @file app/(main)/market-prices/page.tsx
- * @description 실시간 시세 조회 페이지
+ * @file app/(main)/market-prices/kamis/page.tsx
+ * @description KAMIS 실시간 시세 조회 페이지
  *
- * 이 페이지는 소매점이 공영도매시장의 실시간 시세를 조회하는 페이지입니다.
- *
- * 주요 기능:
- * 1. 시세 목록 표시
- * 2. 날짜별 필터 (오늘, 어제, 최근 7일)
- * 3. 상품별 필터 (검색)
- * 4. 시장별 필터 (가락시장, 강서시장 등)
- * 5. 시세 카드 그리드 형태
- *
- * 핵심 구현 로직:
- * - Clerk useUser 훅으로 사용자 인증 확인
- * - API Route로 시세 조회
- * - MarketPriceCard 컴포넌트로 표시
- * - 필터링 기능
- *
- * @dependencies
- * - @clerk/nextjs: 사용자 인증
- * - next/navigation: 라우팅
- * - @/components/market-prices/MarketPriceCard: 시세 카드 컴포넌트
- * - @/lib/types: MarketPrice
- *
- * @see {@link docs/PRD.md} - 실시간 시세 조회 페이지 명세
- * @see {@link docs/TODO.md} - TODO 748-777 라인
+ * 이 페이지는 소매점이 KAMIS Open API를 통해 공영도매시장의 실시간 시세를 조회하는 페이지입니다.
  */
 
 import { useState, useEffect } from "react";
@@ -46,12 +24,13 @@ interface MarketPrice {
   date: string;
 }
 
-export default function MarketPricesPage() {
+export default function KamisMarketPricesPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // KAMIS API는 날짜 필터링이 조금 다를 수 있지만 UI 일관성을 위해 유지
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "week">(
     "today",
   );
@@ -70,15 +49,16 @@ export default function MarketPricesPage() {
 
     try {
       setLoading(true);
-      console.group("📊 시세 조회 시작");
+      console.group("📊 KAMIS 시세 조회 시작");
       console.log("상품명:", productName || "전체");
 
       const params = new URLSearchParams();
       if (productName && productName.trim()) {
         params.append("productName", productName.trim());
       }
+      // 지역 필터 등 추가 가능
 
-      const apiUrl = `/api/market-prices?${params.toString()}`;
+      const apiUrl = `/api/market-prices/kamis?${params.toString()}`;
       console.log("🔗 API URL:", apiUrl);
 
       let response: Response;
@@ -107,7 +87,7 @@ export default function MarketPricesPage() {
       let result: any;
       try {
         const responseText = await response.text();
-        console.log("📄 응답 본문 (처음 500자):", responseText.substring(0, 500));
+        // console.log("📄 응답 본문 (처음 500자):", responseText.substring(0, 500));
 
         if (!responseText || responseText.trim() === "") {
           throw new Error("서버로부터 빈 응답을 받았습니다.");
@@ -182,10 +162,10 @@ export default function MarketPricesPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <TrendingUp className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">실시간 시세 조회 (공공데이터)</h1>
+          <h1 className="text-3xl font-bold">실시간 시세 조회 (KAMIS)</h1>
         </div>
         <p className="text-gray-600">
-          공영도매시장의 실시간 경매 가격을 확인하세요.
+          KAMIS Open API를 통해 공영도매시장의 실시간 경매 가격을 확인하세요.
         </p>
       </div>
 
@@ -210,7 +190,7 @@ export default function MarketPricesPage() {
           </Button>
         </div>
 
-        {/* 날짜 필터 */}
+        {/* 날짜 필터 (UI만 유지, 실제 기능은 API 구현에 따라 다름) */}
         <div className="flex gap-2 flex-wrap">
           <Button
             variant={dateFilter === "today" ? "default" : "outline"}
