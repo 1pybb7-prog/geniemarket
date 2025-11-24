@@ -34,16 +34,27 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { MarketPriceCard } from "@/components/market-prices/MarketPriceCard";
 import { SearchBar } from "@/components/layout/SearchBar";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { REGIONS } from "@/lib/constants/regions";
 import { TrendingUp, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 interface MarketPrice {
   market_name: string;
   price: number;
-  grade?: string;
+  grade?: string; // 품질 등급 (특상, 상품, 중품, 하품, 일반)
   date: string;
+  product_name?: string; // 상품명
+  unit?: string; // 단위
 }
 
 export default function MarketPricesPage() {
@@ -52,6 +63,7 @@ export default function MarketPricesPage() {
   const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [region, setRegion] = useState<string>(""); // 지역 선택 (빈 문자열 = 전체 지역)
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "week">(
     "today",
   );
@@ -72,10 +84,15 @@ export default function MarketPricesPage() {
       setLoading(true);
       console.group("📊 시세 조회 시작");
       console.log("상품명:", productName || "전체");
+      console.log("지역:", region || "전체 지역");
 
       const params = new URLSearchParams();
       if (productName && productName.trim()) {
         params.append("productName", productName.trim());
+      }
+      // 지역이 선택된 경우에만 파라미터 추가 (빈 문자열이면 전체 지역)
+      if (region && region.trim() !== "") {
+        params.append("region", region.trim());
       }
 
       const apiUrl = `/api/market-prices?${params.toString()}`;
@@ -107,7 +124,10 @@ export default function MarketPricesPage() {
       let result: any;
       try {
         const responseText = await response.text();
-        console.log("📄 응답 본문 (처음 500자):", responseText.substring(0, 500));
+        console.log(
+          "📄 응답 본문 (처음 500자):",
+          responseText.substring(0, 500),
+        );
 
         if (!responseText || responseText.trim() === "") {
           throw new Error("서버로부터 빈 응답을 받았습니다.");
@@ -176,6 +196,13 @@ export default function MarketPricesPage() {
     return null; // useEffect에서 리다이렉트 처리
   }
 
+  // 디버깅: 지역 선택 UI가 렌더링되는지 확인
+  useEffect(() => {
+    console.log("🔍 MarketPricesPage 렌더링 확인");
+    console.log("📍 현재 선택된 지역:", region || "전체 지역");
+    console.log("📋 REGIONS 배열:", REGIONS);
+  }, [region]);
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 헤더 */}
@@ -191,24 +218,112 @@ export default function MarketPricesPage() {
 
       {/* 검색창 및 필터 */}
       <div className="mb-6 space-y-4">
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <SearchBar
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSearch();
-                }
-              }}
-              placeholder="상품명을 입력하세요 (예: 청양고추)"
-            />
-          </div>
-          <Button onClick={handleSearch}>
-            <Search className="w-4 h-4 mr-2" />
-            검색
-          </Button>
-        </div>
+        {/* 지역 선택 + 상품명 검색 - 하나의 Card로 통합 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">상품명으로 시세 조회</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* 지역 선택 - 시세 조회 전에 먼저 선택 */}
+              <div className="space-y-2 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                <Label
+                  htmlFor="region-select"
+                  className="text-base font-bold block mb-3 text-gray-900"
+                >
+                  📍 지역 선택 (선택사항)
+                </Label>
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={region || ""}
+                    onValueChange={(value) => {
+                      console.log("📍 지역 선택 변경:", value);
+                      setRegion(value);
+                    }}
+                  >
+                    <SelectTrigger
+                      id="region-select"
+                      className="w-full max-w-md h-11 text-base border-2"
+                    >
+                      <SelectValue placeholder="전체 지역 (모든 지역 조회)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">전체 지역</SelectItem>
+                      {REGIONS.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {region && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        console.log("📍 지역 초기화");
+                        setRegion("");
+                      }}
+                      className="h-11"
+                    >
+                      전체 지역으로
+                    </Button>
+                  )}
+                </div>
+                {region ? (
+                  <p className="text-sm text-blue-700 font-semibold mt-3 bg-blue-100 p-2 rounded">
+                    ✓ {region} 지역의 시세만 조회됩니다.
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-3">
+                    전체 지역이 선택되어 있습니다. 모든 지역의 시세를
+                    조회합니다.
+                  </p>
+                )}
+              </div>
+
+              {/* 상품명 검색 */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="product-search"
+                  className="text-sm font-semibold block mb-2"
+                >
+                  상품명
+                </Label>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSearch();
+                  }}
+                  className="flex gap-4"
+                >
+                  <div className="flex-1">
+                    <SearchBar
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSearch();
+                        }
+                      }}
+                      placeholder="상품명을 입력하세요 (예: 청양고추, 사과, 배추)"
+                      noForm
+                    />
+                  </div>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4 mr-2" />
+                    )}
+                    시세 조회
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 날짜 필터 */}
         <div className="flex gap-2 flex-wrap">

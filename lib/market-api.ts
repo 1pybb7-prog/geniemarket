@@ -106,14 +106,225 @@ export async function getPublicDataMarketPrices(
     const responseText = await response.text();
     // console.log("📄 응답 본문 (처음 200자):", responseText.substring(0, 200));
 
-    let data: any;
-    try {
-      data = JSON.parse(responseText);
-    } catch (e) {
-      console.error("❌ JSON 파싱 실패. 응답이 XML일 수 있습니다.");
-      // XML 파싱 로직이 필요할 수 있음. 현재는 JSON만 처리.
-      throw new Error("JSON 파싱 실패");
+    console.log("📤 실시간 경매정보 조회 API 호출 중...");
+    console.log("🔍 상품명:", productName);
+    console.log("🔑 API 키 설정 여부:", apiKey ? "✅ 설정됨" : "❌ 없음");
+    console.log("🔗 API 엔드포인트:", BASE_URL);
+
+    // 오늘 날짜 (YYYYMMDD 형식) - 한국 시간대 기준
+    const today = new Date();
+    // 한국 시간대(KST, UTC+9) 기준으로 날짜 계산
+    const kstOffset = 9 * 60; // 한국은 UTC+9
+    const kstDate = new Date(
+      today.getTime() + (kstOffset - today.getTimezoneOffset()) * 60000,
+    );
+    const todayStr = `${kstDate.getFullYear()}${String(kstDate.getMonth() + 1).padStart(2, "0")}${String(kstDate.getDate()).padStart(2, "0")}`;
+    console.log("📅 기준일자 (KST):", todayStr);
+    console.log("📅 현재 시간 (로컬):", today.toLocaleString("ko-KR"));
+
+    // 공공데이터포털 API 파라미터 구성
+    // 여러 페이지를 조회하여 더 많은 데이터를 가져옴 (최대 5페이지, 각 500개 = 최대 2500개)
+    const MAX_PAGES = 5;
+    const ROWS_PER_PAGE = 500;
+
+    let allItems: any[] = [];
+    let lastError: Error | null = null;
+    let totalCount = 0;
+
+    // 여러 페이지를 순회하며 데이터 수집
+    for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
+      try {
+        const params = new URLSearchParams({
+          serviceKey: apiKey, // 공공데이터포털 API 키
+          pageNo: String(pageNo), // 페이지 번호
+          numOfRows: String(ROWS_PER_PAGE), // 한 번에 가져올 데이터 수
+          dataType: "JSON", // JSON 형식
+          trgDate: todayStr, // 조회 날짜 (YYYYMMDD)
+        });
+
+        const url = `${BASE_URL}?${params.toString()}`;
+
+        if (pageNo === 1) {
+          console.log(
+            "🔗 API 호출 URL (인증키 마스킹):",
+            url.replace(apiKey, "***"),
+          );
+          console.log("📋 요청 파라미터:", {
+            pageNo: "1~" + MAX_PAGES,
+            numOfRows: ROWS_PER_PAGE,
+            dataType: "JSON",
+            trgDate: todayStr,
+          });
+        }
+
+        console.log(`🚀 API 호출 시작... (페이지 ${pageNo}/${MAX_PAGES})`);
+        const startTime = Date.now();
+
+        // API 호출
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Accept: "application/json, application/xml, text/xml, */*",
+          },
+        });
+
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        console.log(`⏱️ API 호출 완료 (소요 시간: ${duration}ms)`);
+        console.log("📥 API 응답 상태:", response.status, response.statusText);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.warn("⚠️ API 호출 실패:", errorText.substring(0, 500));
+          throw new Error(
+            `API 호출 실패: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        // 응답 Content-Type 확인
+        const contentType = response.headers.get("content-type") || "";
+        console.log("📄 Content-Type:", contentType);
+
+        // 응답 본문 읽기
+        const responseText = await response.text();
+        console.log(
+          "📄 응답 본문 (처음 1000자):",
+          responseText.substring(0, 1000),
+        );
+
+        let data: any;
+
+        // JSON 파싱 시도
+        try {
+          data = JSON.parse(responseText);
+          console.log("✅ JSON 응답 수신");
+          console.log(
+            "📊 응답 구조:",
+            JSON.stringify(data, null, 2).substring(0, 2000),
+          );
+        } catch (parseError) {
+          // JSON 파싱 실패 시 XML인지 확인
+          if (contentType.includes("xml") || contentType.includes("text/xml")) {
+            console.warn("⚠️ XML 응답 (XML 파싱은 추후 구현 필요)");
+            console.warn(
+              "💡 공공데이터포털 API에서 resultType=json 파라미터를 확인하세요.",
+            );
+          } else {
+            console.error("❌ JSON 파싱 실패:", parseError);
+            console.warn("📄 원본 응답:", responseText.substring(0, 1000));
+          }
+          throw new Error("응답 파싱 실패");
+        }
+
+        // 공공데이터포털 API 응답 구조 파싱
+        // 공공데이터포털 API 응답 구조: { response: { body: { items: { item: [...] } } } }
+        const prices: MarketPrice[] = [];
+
+        // 응답 구조 확인 및 로깅
+        console.log(
+          "🔍 응답 데이터 구조 분석:",
+          JSON.stringify(data, null, 2).substring(0, 2000),
+        );
+
+        // 공공데이터포털 API 응답 구조 확인
+        let items: any[] = [];
+        let resultCode = "";
+        let errorMsg = "";
+
+        // 응답 구조: response.body.items.item (공공데이터포털 표준 형식)
+        if (data?.response?.body?.items?.item) {
+          items = Array.isArray(data.response.body.items.item)
+            ? data.response.body.items.item
+            : [data.response.body.items.item];
+          resultCode = data.response?.header?.resultCode || "";
+          errorMsg = data.response?.header?.resultMsg || "";
+          console.log(
+            `📦 공공데이터포털 형식에서 ${items.length}개 아이템 발견`,
+          );
+        }
+        // 하위 호환성: 다른 응답 구조도 지원
+        else if (data?.body?.items?.item) {
+          items = Array.isArray(data.body.items.item)
+            ? data.body.items.item
+            : [data.body.items.item];
+          resultCode = data.header?.resultCode || "";
+          errorMsg = data.header?.resultMsg || "";
+          console.log(`📦 body.items.item에서 ${items.length}개 아이템 발견`);
+        }
+        // 하위 호환성: KAMIS 형식도 지원
+        else if (data?.data?.item) {
+          items = Array.isArray(data.data.item)
+            ? data.data.item
+            : [data.data.item];
+          resultCode = data.data.error_code || "";
+          errorMsg = data.data.error_msg || "";
+          console.log(`📦 KAMIS data.item에서 ${items.length}개 아이템 발견`);
+        } else if (Array.isArray(data?.item)) {
+          items = data.item;
+          console.log(`📦 item 배열에서 ${items.length}개 아이템 발견`);
+        }
+
+        // 결과 코드 확인 (공공데이터포털: "0"이 정상)
+        if (
+          resultCode &&
+          resultCode !== "00" &&
+          resultCode !== "000" &&
+          resultCode !== "0" &&
+          resultCode !== ""
+        ) {
+          console.warn(
+            "⚠️ API 에러 코드:",
+            resultCode,
+            errorMsg || "알 수 없음",
+          );
+          if (
+            errorMsg.includes("no data") ||
+            errorMsg.includes("데이터 없음") ||
+            errorMsg.includes("NODATA") ||
+            errorMsg.includes("조회된 데이터가 없습니다") ||
+            errorMsg.includes("결과가 없습니다")
+          ) {
+            if (pageNo === 1) {
+              console.log("📭 데이터 없음");
+              console.groupEnd();
+              return [];
+            }
+            break; // 첫 페이지가 아니면 중단
+          }
+        }
+
+        if (items.length === 0) {
+          if (pageNo === 1) {
+            console.warn("⚠️ 응답에 데이터가 없습니다.");
+            console.groupEnd();
+            return [];
+          }
+          break; // 첫 페이지가 아니면 중단
+        }
+
+        // 아이템을 전체 배열에 추가
+        allItems = allItems.concat(items);
+
+        // 더 이상 데이터가 없으면 중단
+        if (items.length < ROWS_PER_PAGE) {
+          console.log(`✅ 모든 데이터 수집 완료 (총 ${allItems.length}개)`);
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ 페이지 ${pageNo} 처리 중 오류 발생:`, error);
+        if (pageNo === 1) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+        }
+        // 첫 페이지가 아니면 계속 진행
+        if (pageNo === 1) {
+          throw error;
+        }
+        break;
+      }
     }
+
+    // allItems를 items로 설정
+    const items = allItems;
 
     // 데이터 구조 확인 및 추출
     // 응답 구조는 API 버전에 따라 다를 수 있음.
@@ -156,47 +367,456 @@ export async function getPublicDataMarketPrices(
         // 대소문자 무시하고 필드 찾기 위한 헬퍼 함수
         const getValue = (val: any) => (val ? String(val).trim() : "");
 
-        // 가격: 공공데이터포털 API 필드명 (price, p_price, cost, amt 등)
-        const priceStr =
-          getValue(item.price) ||
-          getValue(item.p_price) ||
-          getValue(item.cost) ||
-          getValue(item.amt) ||
-          getValue(item.sbid_pric); // 낙찰가 (공공데이터포털)
+        // 가격: 공공데이터포털 API 필드명
+        // 우선순위: scsbd_prc(성사단가, 공공데이터포털) > 기타 필드
+        let price = 0;
+        let usedPriceField = "";
+        const priceFields = [
+          { name: "scsbd_prc", value: getValue(item.scsbd_prc) }, // 공공데이터포털 성사단가 (우선)
+          { name: "dpr1", value: getValue(item.dpr1) }, // KAMIS 당일 가격
+          { name: "p_price", value: getValue(item.p_price) }, // KAMIS 표준 필드
+          { name: "price", value: getValue(item.price) },
+          { name: "amt", value: getValue(item.amt) },
+          { name: "sbid_pric", value: getValue(item.sbid_pric) }, // 낙찰가 (공공데이터포털)
+          { name: "cost", value: getValue(item.cost) },
+          { name: "dpr2", value: getValue(item.dpr2) }, // 1일전 가격
+          { name: "dpr3", value: getValue(item.dpr3) }, // 1개월전 가격
+          { name: "auction_price", value: getValue(item.auction_price) },
+          { name: "trade_price", value: getValue(item.trade_price) },
+        ];
+
+        // 가격 필드에서 유효한 값 찾기
+        for (const field of priceFields) {
+          if (field.value && field.value !== "-" && field.value !== "") {
+            const parsedPrice = parseInt(field.value.replace(/,/g, ""), 10);
+            if (!isNaN(parsedPrice) && parsedPrice > 0) {
+              price = parsedPrice;
+              usedPriceField = field.name;
+              break;
+            }
+          }
+        }
 
         // 가격이 없으면 스킵
-        if (!priceStr) return;
+        if (price === 0) {
+          return;
+        }
 
-        const price = parseInt(priceStr.replace(/,/g, ""), 10);
-
-        if (!isNaN(price) && price > 0) {
+        if (price > 0) {
           // 시장명: 공공데이터포털 API 필드명
           const marketName =
             getValue(item.marketname) ||
             getValue(item.p_marketname) ||
             getValue(item.marketName) ||
-            getValue(item.whsal_mrkt_nm); // 도매시장명 (공공데이터포털)
-
-          // 등급: 공공데이터포털 API 필드명
-          const grade =
-            getValue(item.grade) ||
-            getValue(item.p_grade) ||
-            getValue(item.grade_nm) || // 등급명 (공공데이터포털)
-            "일반";
-
-          // 단위: 공공데이터포털 API 필드명
-          const unit =
-            getValue(item.unit) ||
-            getValue(item.p_unit) ||
-            getValue(item.std_unit_new_nm) || // 규격단위명 (공공데이터포털)
-            getValue(item.delng_qy) || // 거래량 (단위가 아닐 수 있음)
-            "1kg";
+            getValue(item.whsal_mrkt_nm) || // 도매시장명 (공공데이터포털)
+            getValue(item.whsalMrktNm) ||
+            getValue(item.mrktNm) ||
+            getValue(item.countyname) ||
+            getValue(item.p_countyname) ||
+            "전국 평균"; // 시장명이 없으면 "전국 평균"으로 표시
 
           // 상품명 (API 응답에서 확인)
           const itemNameValue =
             getValue(item.item_nm) ||
             getValue(item.prdlst_nm) ||
-            getValue(item.productName);
+            getValue(item.productName) ||
+            getValue(item.corp_gds_item_nm) ||
+            getValue(item.p_itemname) ||
+            getValue(item.p_productname) ||
+            getValue(item.productname) ||
+            getValue(item.prdlstNm) ||
+            productName;
+
+          // 상품명이 없거나 빈 문자열인 경우 건너뛰기 (유효한 상품명만 표시)
+          if (!itemNameValue || itemNameValue.trim() === "") {
+            return;
+          }
+
+          // 지역 필터링: region이 지정된 경우 시장명에서 지역 확인
+          if (region && region.trim() !== "") {
+            const normalizedRegion = region.trim();
+            // 시장명에서 "시장", "도매시장", "공영시장" 등의 단어 제거 후 비교
+            const cleanedMarketName = marketName
+              .replace(/시장|도매시장|공영시장|농수산시장|청과시장/gi, "")
+              .trim();
+            const normalizedMarketName = cleanedMarketName.toLowerCase();
+
+            // 시장명-지역 매핑 (주요 시장 기준, 시장명에서 "시장" 단어 제거 후 비교)
+            const marketRegionMap: Record<string, string[]> = {
+              서울: ["가락", "강서", "청과", "농수산", "서울", "송파", "강동"],
+              부산: ["부산", "서부산", "동부산", "북부산", "남부산"],
+              대구: ["대구", "서문", "북대구", "남대구"],
+              인천: ["인천", "남인천", "북인천", "서인천"],
+              광주: ["광주", "무등", "광주시"],
+              대전: ["대전", "유성", "서대전"],
+              울산: ["울산", "남울산"],
+              경기: [
+                "수원",
+                "안양",
+                "고양",
+                "성남",
+                "용인",
+                "부천",
+                "안산",
+                "평택",
+                "시흥",
+                "김포",
+                "광명",
+                "하남",
+                "이천",
+                "오산",
+                "의정부",
+                "안성",
+                "구리",
+                "남양주",
+                "화성",
+                "양주",
+                "포천",
+                "여주",
+                "연천",
+                "가평",
+                "양평",
+                "경기",
+                "과천",
+                "군포",
+                "의왕",
+                "동두천",
+              ],
+              강원: [
+                "강릉",
+                "춘천",
+                "원주",
+                "속초",
+                "삼척",
+                "태백",
+                "동해",
+                "영월",
+                "평창",
+                "정선",
+                "철원",
+                "화천",
+                "양구",
+                "인제",
+                "고성",
+                "양양",
+                "홍천",
+                "횡성",
+                "강원",
+              ],
+              충북: [
+                "청주",
+                "충주",
+                "제천",
+                "보은",
+                "옥천",
+                "증평",
+                "진천",
+                "괴산",
+                "음성",
+                "단양",
+                "충북",
+              ],
+              충남: [
+                "천안",
+                "아산",
+                "서산",
+                "당진",
+                "공주",
+                "보령",
+                "계룡",
+                "논산",
+                "부여",
+                "서천",
+                "청양",
+                "홍성",
+                "예산",
+                "태안",
+                "금산",
+                "충남",
+              ],
+              전북: [
+                "전주",
+                "익산",
+                "정읍",
+                "남원",
+                "김제",
+                "완주",
+                "진안",
+                "무주",
+                "장수",
+                "임실",
+                "순창",
+                "고창",
+                "부안",
+                "전북",
+              ],
+              전남: [
+                "목포",
+                "여수",
+                "순천",
+                "나주",
+                "광양",
+                "담양",
+                "곡성",
+                "구례",
+                "고흥",
+                "보성",
+                "화순",
+                "장흥",
+                "강진",
+                "해남",
+                "영암",
+                "무안",
+                "함평",
+                "영광",
+                "장성",
+                "완도",
+                "진도",
+                "신안",
+                "전남",
+              ],
+              경북: [
+                "포항",
+                "경주",
+                "김천",
+                "안동",
+                "구미",
+                "영주",
+                "영천",
+                "상주",
+                "문경",
+                "경산",
+                "군위",
+                "의성",
+                "청송",
+                "영양",
+                "영덕",
+                "청도",
+                "고령",
+                "성주",
+                "칠곡",
+                "예천",
+                "봉화",
+                "울진",
+                "울릉",
+                "경북",
+              ],
+              경남: [
+                "창원",
+                "마산",
+                "진해",
+                "진주",
+                "통영",
+                "사천",
+                "김해",
+                "밀양",
+                "거제",
+                "양산",
+                "의령",
+                "함안",
+                "창녕",
+                "고성",
+                "남해",
+                "하동",
+                "산청",
+                "함양",
+                "거창",
+                "합천",
+                "경남",
+              ],
+              제주: ["제주", "서귀포"],
+            };
+
+            // 지역에 해당하는 시장명 키워드 확인
+            const regionKeywords = marketRegionMap[normalizedRegion] || [
+              normalizedRegion,
+            ];
+
+            // 시장명에 지역 키워드가 포함되어 있는지 확인
+            // 정확한 매칭을 위해 키워드가 시장명의 시작 부분에 있는지도 확인
+            const matchesRegion = regionKeywords.some((keyword) => {
+              const lowerKeyword = keyword.toLowerCase();
+              // 시장명이 키워드로 시작하거나, 키워드가 시장명에 포함되어 있는지 확인
+              return (
+                normalizedMarketName.startsWith(lowerKeyword) ||
+                normalizedMarketName.includes(lowerKeyword)
+              );
+            });
+
+            if (!matchesRegion) {
+              // 지역이 일치하지 않으면 건너뛰기
+              console.log(
+                `🚫 지역 필터링: "${marketName}" (정리: "${cleanedMarketName}")는 "${normalizedRegion}" 지역이 아님 - 제외`,
+              );
+              return;
+            } else {
+              console.log(
+                `✅ 지역 필터링: "${marketName}" (정리: "${cleanedMarketName}")는 "${normalizedRegion}" 지역 - 포함`,
+              );
+            }
+          }
+
+          // 등급: kindname에서 추출하거나 기본값
+          const kindNameValue = getValue(item.kindname);
+
+          // 단위 파싱: kindname에서 추출 (예: "20kg(1kg)" -> 박스: 20kg, 단위: 1kg)
+          // 또는 "1포기", "1개" 등
+          let unit = "1kg";
+          let boxSize = 1; // 박스 크기 (kg 단위)
+
+          if (kindNameValue) {
+            // "20kg(1kg)" 형태 파싱
+            const unitMatch = kindNameValue.match(/(\d+)kg\s*\((\d+)kg\)/);
+            if (unitMatch) {
+              boxSize = Number(unitMatch[1]) || 1; // 박스 크기
+              unit = `${unitMatch[2]}kg`; // 표시 단위
+            } else {
+              // "1포기", "1개" 등 다른 단위
+              const otherUnitMatch =
+                kindNameValue.match(/(\d+)(포기|개|박스|망|봉)/);
+              if (otherUnitMatch) {
+                unit = `${otherUnitMatch[1]}${otherUnitMatch[2]}`;
+                boxSize = 1; // 포기/개 단위는 변환하지 않음
+              } else {
+                // kg 단위만 있는 경우
+                const kgMatch = kindNameValue.match(/(\d+)kg/);
+                if (kgMatch) {
+                  boxSize = Number(kgMatch[1]) || 1;
+                  unit = "1kg";
+                }
+              }
+            }
+          }
+
+          // 단위: 공공데이터포털 API 필드명
+          const unitNm = getValue(item.unit_nm); // 단위명 (예: "kg")
+          const unitQty = getValue(item.unit_qty); // 단위 수량 (예: "1.000")
+
+          // 단위 필드가 있으면 우선 사용
+          if (unitNm) {
+            if (unitQty && unitQty !== "1.000" && unitQty !== "1") {
+              unit = `${unitQty}${unitNm}`;
+            } else {
+              unit = `1${unitNm}`;
+            }
+          } else {
+            // 하위 호환성: KAMIS 필드명도 지원
+            const unitField =
+              getValue(item.unit) ||
+              getValue(item.p_unitname) ||
+              getValue(item.unitname) ||
+              getValue(item.stdUnit) ||
+              getValue(item.stdQtt) ||
+              getValue(item.p_unit);
+            if (unitField && unitField !== unit) {
+              unit = unitField;
+            }
+          }
+
+          // 등급: 공공데이터포털 API 필드명
+          // 여러 필드에서 등급 정보를 찾음
+          let grade =
+            getValue(item.gds_sclsf_nm) || // 상세분류명 (공공데이터포털, 우선)
+            getValue(item.gds_mclsf_nm) || // 중분류명 (공공데이터포털)
+            getValue(item.corp_gds_vrty_nm) || // 품종명 (공공데이터포털)
+            getValue(item.kindname) || // 품종명 (KAMIS)
+            getValue(item.p_grade) ||
+            getValue(item.grade) ||
+            getValue(item.rank) ||
+            getValue(item.stdPrdlstNm) ||
+            getValue(item.productrank) ||
+            getValue(item.quality) ||
+            getValue(item.품질) ||
+            "";
+
+          // 등급이 없으면 상품명이나 상세분류명에서 추출 시도
+          if (!grade || grade === "" || grade === "-" || grade === "null") {
+            const productNameForGrade =
+              getValue(item.corp_gds_item_nm) ||
+              getValue(item.productName) ||
+              getValue(item.item_name) ||
+              "";
+            // "사과/부사", "사과/후지" 등에서 등급 추출
+            if (productNameForGrade.includes("/")) {
+              const parts = productNameForGrade.split("/");
+              if (parts.length > 1) {
+                grade = parts[1].trim(); // "/" 뒤의 부분을 등급으로 사용
+              }
+            }
+            // kindname에서 "특상", "상품", "중품", "하품" 추출
+            if ((!grade || grade === "" || grade === "-") && kindNameValue) {
+              const normalizedKindName = kindNameValue.toLowerCase();
+              if (
+                normalizedKindName.includes("특상") ||
+                normalizedKindName.includes("특등")
+              ) {
+                grade = "특상";
+              } else if (
+                normalizedKindName.includes("상품") ||
+                normalizedKindName === "상" ||
+                normalizedKindName.includes("상등")
+              ) {
+                grade = "상품";
+              } else if (
+                normalizedKindName.includes("중품") ||
+                normalizedKindName === "중" ||
+                normalizedKindName.includes("중등")
+              ) {
+                grade = "중품";
+              } else if (
+                normalizedKindName.includes("하품") ||
+                normalizedKindName === "하" ||
+                normalizedKindName.includes("하등")
+              ) {
+                grade = "하품";
+              }
+            }
+            // 상세분류명에서도 등급 추출 시도
+            const detailCategoryName = getValue(item.gds_sclsf_nm) || getValue(item.gds_mclsf_nm);
+            if (
+              (!grade || grade === "" || grade === "-") &&
+              detailCategoryName
+            ) {
+              const normalizedDetailCategory = detailCategoryName.toLowerCase();
+              if (
+                normalizedDetailCategory.includes("특상") ||
+                normalizedDetailCategory.includes("특등")
+              ) {
+                grade = "특상";
+              } else if (
+                normalizedDetailCategory.includes("상품") ||
+                normalizedDetailCategory === "상" ||
+                normalizedDetailCategory.includes("상등")
+              ) {
+                grade = "상품";
+              } else if (
+                normalizedDetailCategory.includes("중품") ||
+                normalizedDetailCategory === "중" ||
+                normalizedDetailCategory.includes("중등")
+              ) {
+                grade = "중품";
+              } else if (
+                normalizedDetailCategory.includes("하품") ||
+                normalizedDetailCategory === "하" ||
+                normalizedDetailCategory.includes("하등")
+              ) {
+                grade = "하품";
+              }
+            }
+            // 기본값
+            if (!grade || grade === "" || grade === "-") {
+              grade = "일반";
+            }
+          }
+
+          // 등급 정보 로깅 (디버깅용 - 처음 몇 개만)
+          // 주의: prices 배열에 추가되기 전이므로 인덱스로 확인
+          const currentIndex = prices.length;
+          if (currentIndex < 3) {
+            console.log(
+              `⭐ 등급 추출 [${currentIndex + 1}]: ${itemNameValue} - 등급: "${grade}" (kindname: "${kindNameValue}", gds_sclsf_nm: "${getValue(item.gds_sclsf_nm)}", gds_mclsf_nm: "${getValue(item.gds_mclsf_nm)}")`,
+            );
+          }
 
           // 가격 필드 확인용 로그 (디버깅)
           // if (prices.length < 1) {
@@ -254,19 +874,45 @@ export async function getPublicDataMarketPrices(
             getValue(item.regday) ||
             getValue(item.baseDate) ||
             getValue(item.date);
-          let date = new Date().toISOString().split("T")[0]; // 기본값: 오늘 날짜
+
+          // 기본값: 오늘 날짜 (한국 시간대 기준)
+          const now = new Date();
+          const kstOffset = 9 * 60; // 한국은 UTC+9
+          const kstNow = new Date(
+            now.getTime() + (kstOffset - now.getTimezoneOffset()) * 60000,
+          );
+          let date = `${kstNow.getFullYear()}-${String(kstNow.getMonth() + 1).padStart(2, "0")}-${String(kstNow.getDate()).padStart(2, "0")}`;
+
           if (dateStr && dateStr !== "-" && dateStr !== "") {
             // YYYY-MM-DD 형식인 경우 (공공데이터포털 표준)
             if (dateStr.includes("-") && dateStr.length >= 10) {
-              date = dateStr.substring(0, 10); // "YYYY-MM-DD" 부분만 추출
+              const parsedDate = dateStr.substring(0, 10); // "YYYY-MM-DD" 부분만 추출
+              // API 응답 날짜가 오늘보다 미래인 경우 로깅
+              const parsedDateObj = new Date(parsedDate);
+              const todayDateObj = new Date(date);
+              if (parsedDateObj > todayDateObj) {
+                console.warn(
+                  `⚠️ 날짜 경고: API 응답 날짜(${parsedDate})가 오늘(${date})보다 미래입니다.`,
+                );
+              }
+              date = parsedDate;
             }
             // YYYYMMDD 형식인 경우
             else if (dateStr.length === 8 && /^\d{8}$/.test(dateStr)) {
-              date = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+              const parsedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+              // API 응답 날짜가 오늘보다 미래인 경우 로깅
+              const parsedDateObj = new Date(parsedDate);
+              const todayDateObj = new Date(date);
+              if (parsedDateObj > todayDateObj) {
+                console.warn(
+                  `⚠️ 날짜 경고: API 응답 날짜(${parsedDate})가 오늘(${date})보다 미래입니다.`,
+                );
+              }
+              date = parsedDate;
             }
             // "MM/DD" 형식인 경우
             else if (dateStr.includes("/") && !dateStr.includes("-")) {
-              const year = String(new Date().getFullYear());
+              const year = String(kstNow.getFullYear());
               const [month, day] = dateStr.split("/");
               date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
             }
