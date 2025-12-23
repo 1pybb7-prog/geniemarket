@@ -32,6 +32,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -265,10 +266,13 @@ export default function OrderDetailPage() {
           <CardContent className="space-y-4">
             {order.product_image && (
               <div className="w-full max-w-xs">
-                <img
+                <Image
                   src={order.product_image}
                   alt={order.product_name}
+                  width={300}
+                  height={192}
                   className="w-full h-48 object-cover rounded-lg border"
+                  unoptimized
                 />
               </div>
             )}

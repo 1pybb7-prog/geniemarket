@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -13,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useClerkSupabaseClient } from "@/lib/supabase/clerk-client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -105,7 +104,7 @@ export default function ChatPage() {
           // 새 메시지가 들어오면 상태에 추가
           const newMessage = payload.new as Message;
           setMessages((prev) => [...prev, newMessage]);
-        }
+        },
       )
       .on(
         "postgres_changes",
@@ -119,7 +118,7 @@ export default function ChatPage() {
           // 메시지가 삭제되면 상태에서 제거
           const deletedId = payload.old.id;
           setMessages((prev) => prev.filter((msg) => msg.id !== deletedId));
-        }
+        },
       )
       .subscribe((status) => {
         console.log(`Realtime 구독 상태: ${status}`);
@@ -181,9 +180,9 @@ export default function ChatPage() {
     return (
       <div className="flex h-screen items-center justify-center flex-col gap-4">
         <p className="text-gray-600">로그인이 필요합니다.</p>
-        <a href="/sign-in" className="text-sky-500 hover:underline">
+        <Link href="/sign-in" className="text-sky-500 hover:underline">
           로그인하기
-        </a>
+        </Link>
       </div>
     );
   }
@@ -217,7 +216,10 @@ export default function ChatPage() {
         <div className="h-16 flex items-center px-4 border-b border-gray-100">
           <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden mr-3">
             <Image
-              src={user.imageUrl || "https://api.dicebear.com/9.x/avataaars/svg?seed=User"}
+              src={
+                user.imageUrl ||
+                "https://api.dicebear.com/9.x/avataaars/svg?seed=User"
+              }
               alt="My Profile"
               width={40}
               height={40}
@@ -339,7 +341,9 @@ export default function ChatPage() {
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !e.shiftKey && handleSend()
+              }
               placeholder="메시지를 입력하세요..."
               disabled={isSending}
               className="flex-1 px-4 py-3 outline-none text-sm placeholder-gray-400 disabled:bg-gray-50"

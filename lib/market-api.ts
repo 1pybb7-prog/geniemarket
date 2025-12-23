@@ -103,7 +103,7 @@ export async function getPublicDataMarketPrices(
     }
 
     // 응답 텍스트 확인 (JSON 파싱 전)
-    const responseText = await response.text();
+    // const responseText = await response.text();
     // console.log("📄 응답 본문 (처음 200자):", responseText.substring(0, 200));
 
     console.log("📤 실시간 경매정보 조회 API 호출 중...");
@@ -129,7 +129,6 @@ export async function getPublicDataMarketPrices(
 
     let allItems: any[] = [];
     let lastError: Error | null = null;
-    let totalCount = 0;
 
     // 여러 페이지를 순회하며 데이터 수집
     for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
@@ -218,7 +217,7 @@ export async function getPublicDataMarketPrices(
 
         // 공공데이터포털 API 응답 구조 파싱
         // 공공데이터포털 API 응답 구조: { response: { body: { items: { item: [...] } } } }
-        const prices: MarketPrice[] = [];
+        // const prices: MarketPrice[] = []; // 페이지별로 처리하지 않고 최종적으로 allItems에서 처리
 
         // 응답 구조 확인 및 로깅
         console.log(
@@ -381,7 +380,7 @@ export async function getPublicDataMarketPrices(
               const parsedPrice = parseInt(field.value.replace(/,/g, ""), 10);
               if (!isNaN(parsedPrice) && parsedPrice > 0) {
                 price = parsedPrice;
-                usedPriceField = field.name;
+                // usedPriceField = field.name; // 디버깅용, 현재 사용하지 않음
                 break;
               }
             }
@@ -679,7 +678,7 @@ export async function getPublicDataMarketPrices(
                   // kg 단위만 있는 경우
                   const kgMatch = kindNameValue.match(/(\d+)kg/);
                   if (kgMatch) {
-                    boxSize = Number(kgMatch[1]) || 1;
+                    // boxSize = Number(kgMatch[1]) || 1; // 현재 사용하지 않음
                     unit = "1kg";
                   }
                 }
@@ -1054,8 +1053,8 @@ export async function getPublicDataMarketPrices(
  * @returns 시세 정보 배열 (빈 배열 반환)
  */
 export async function getKamisMarketPrices(
-  productName: string,
-  region?: string,
+  _productName: string,
+  _region?: string,
 ): Promise<MarketPrice[]> {
   console.warn(
     "⚠️ getKamisMarketPrices는 더 이상 사용되지 않습니다. 새로운 KAMIS 구현을 사용하세요.",

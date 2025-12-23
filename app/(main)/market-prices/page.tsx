@@ -182,6 +182,13 @@ export default function MarketPricesPage() {
     }
   };
 
+  // 디버깅: 지역 선택 UI가 렌더링되는지 확인
+  useEffect(() => {
+    console.log("🔍 MarketPricesPage 렌더링 확인");
+    console.log("📍 현재 선택된 지역:", region || "전체 지역");
+    console.log("📋 KAMIS 지원 지역 배열:", KAMIS_SUPPORTED_REGIONS);
+  }, [region]);
+
   // 로딩 중
   if (!isLoaded) {
     return (
@@ -195,13 +202,6 @@ export default function MarketPricesPage() {
   if (!user) {
     return null; // useEffect에서 리다이렉트 처리
   }
-
-  // 디버깅: 지역 선택 UI가 렌더링되는지 확인
-  useEffect(() => {
-    console.log("🔍 MarketPricesPage 렌더링 확인");
-    console.log("📍 현재 선택된 지역:", region || "전체 지역");
-    console.log("📋 KAMIS 지원 지역 배열:", KAMIS_SUPPORTED_REGIONS);
-  }, [region]);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">

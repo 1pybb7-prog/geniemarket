@@ -285,7 +285,7 @@ export default function KAMISTestPage() {
               </Button>
             </div>
             <div className="text-sm text-gray-500">
-              💡 빠른 테스트: "사과", "청양고추", "배추" 등을 입력해보세요.
+              💡 빠른 테스트: &quot;사과&quot;, &quot;청양고추&quot;, &quot;배추&quot; 등을 입력해보세요.
               {selectedRegion && (
                 <span className="ml-2">
                   📍 지역 필터: <strong>{selectedRegion}</strong> (
@@ -619,7 +619,7 @@ export default function KAMISTestPage() {
             것입니다.
           </p>
           <p>
-            • 상품명을 입력하고 "테스트 실행" 버튼을 클릭하면 API를 호출합니다.
+            • 상품명을 입력하고 &quot;테스트 실행&quot; 버튼을 클릭하면 API를 호출합니다.
           </p>
           <p>
             • 환경변수{" "}
