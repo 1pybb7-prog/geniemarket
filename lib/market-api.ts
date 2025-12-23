@@ -359,7 +359,6 @@ export async function getPublicDataMarketPrices(
           // 가격: 공공데이터포털 API 필드명
           // 우선순위: scsbd_prc(성사단가, 공공데이터포털) > 기타 필드
           let price = 0;
-          let usedPriceField = "";
           const priceFields = [
             { name: "scsbd_prc", value: getValue(item.scsbd_prc) }, // 공공데이터포털 성사단가 (우선)
             { name: "dpr1", value: getValue(item.dpr1) }, // KAMIS 당일 가격
@@ -380,7 +379,6 @@ export async function getPublicDataMarketPrices(
               const parsedPrice = parseInt(field.value.replace(/,/g, ""), 10);
               if (!isNaN(parsedPrice) && parsedPrice > 0) {
                 price = parsedPrice;
-                // usedPriceField = field.name; // 디버깅용, 현재 사용하지 않음
                 break;
               }
             }
@@ -659,13 +657,12 @@ export async function getPublicDataMarketPrices(
             // 단위 파싱: kindname에서 추출 (예: "20kg(1kg)" -> 박스: 20kg, 단위: 1kg)
             // 또는 "1포기", "1개" 등
             let unit = "1kg";
-            let boxSize = 1; // 박스 크기 (kg 단위)
 
             if (kindNameValue) {
               // "20kg(1kg)" 형태 파싱
               const unitMatch = kindNameValue.match(/(\d+)kg\s*\((\d+)kg\)/);
               if (unitMatch) {
-                boxSize = Number(unitMatch[1]) || 1; // 박스 크기
+                // const boxSize = Number(unitMatch[1]) || 1; // 박스 크기 (현재 사용하지 않음)
                 unit = `${unitMatch[2]}kg`; // 표시 단위
               } else {
                 // "1포기", "1개" 등 다른 단위
@@ -673,12 +670,10 @@ export async function getPublicDataMarketPrices(
                   kindNameValue.match(/(\d+)(포기|개|박스|망|봉)/);
                 if (otherUnitMatch) {
                   unit = `${otherUnitMatch[1]}${otherUnitMatch[2]}`;
-                  boxSize = 1; // 포기/개 단위는 변환하지 않음
                 } else {
                   // kg 단위만 있는 경우
                   const kgMatch = kindNameValue.match(/(\d+)kg/);
                   if (kgMatch) {
-                    // boxSize = Number(kgMatch[1]) || 1; // 현재 사용하지 않음
                     unit = "1kg";
                   }
                 }
@@ -1053,7 +1048,9 @@ export async function getPublicDataMarketPrices(
  * @returns 시세 정보 배열 (빈 배열 반환)
  */
 export async function getKamisMarketPrices(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _productName: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _region?: string,
 ): Promise<MarketPrice[]> {
   console.warn(
