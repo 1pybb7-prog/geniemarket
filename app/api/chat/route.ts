@@ -63,7 +63,11 @@ export async function POST(request: Request) {
     console.log("📚 대화 이력 길이:", conversationHistory?.length || 0);
 
     // 입력 검증
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
+    if (
+      !message ||
+      typeof message !== "string" ||
+      message.trim().length === 0
+    ) {
       console.error("❌ 메시지가 비어있음");
       console.groupEnd();
       return NextResponse.json(
@@ -123,12 +127,16 @@ export async function POST(request: Request) {
 
     // 응답 형식 확인 및 추출
     let aiResponse: string;
-    
+
     // 배열 형식 처리: [{"response":"..."}]
     if (Array.isArray(webhookData) && webhookData.length > 0) {
       const firstItem = webhookData[0];
       if (typeof firstItem === "object" && firstItem !== null) {
-        aiResponse = firstItem.response || firstItem.message || firstItem.text || JSON.stringify(firstItem);
+        aiResponse =
+          firstItem.response ||
+          firstItem.message ||
+          firstItem.text ||
+          JSON.stringify(firstItem);
       } else {
         aiResponse = String(firstItem);
       }
@@ -148,7 +156,7 @@ export async function POST(request: Request) {
     // 마크다운 포맷팅 제거 (자연스러운 텍스트로 변환)
     // **텍스트** → 텍스트로 변환
     aiResponse = aiResponse.replace(/\*\*(.+?)\*\*/g, "$1");
-    
+
     console.log("💬 AI 응답 추출 완료 (마크다운 제거 후):", aiResponse);
     console.groupEnd();
 
@@ -166,4 +174,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
