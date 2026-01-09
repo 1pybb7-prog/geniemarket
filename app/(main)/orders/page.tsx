@@ -34,7 +34,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, Loader2, Filter } from "lucide-react";
+import { Package, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@/lib/types";
 import { OrderCard } from "@/components/orders/OrderCard";

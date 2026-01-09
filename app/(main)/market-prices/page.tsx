@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { REGIONS } from "@/lib/constants/regions";
+import { KAMIS_SUPPORTED_REGIONS } from "@/lib/constants/kamis-region-codes";
 import { TrendingUp, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,7 +63,7 @@ export default function MarketPricesPage() {
   const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [region, setRegion] = useState<string>(""); // 지역 선택 (빈 문자열 = 전체 지역)
+  const [region, setRegion] = useState<string | undefined>(undefined); // 지역 선택 (undefined = 전체 지역)
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "week">(
     "today",
   );
@@ -90,8 +90,8 @@ export default function MarketPricesPage() {
       if (productName && productName.trim()) {
         params.append("productName", productName.trim());
       }
-      // 지역이 선택된 경우에만 파라미터 추가 (빈 문자열이면 전체 지역)
-      if (region && region.trim() !== "") {
+      // 지역이 선택된 경우에만 파라미터 추가 (undefined이면 전체 지역)
+      if (region && region !== "all") {
         params.append("region", region.trim());
       }
 
@@ -182,6 +182,13 @@ export default function MarketPricesPage() {
     }
   };
 
+  // 디버깅: 지역 선택 UI가 렌더링되는지 확인
+  useEffect(() => {
+    console.log("🔍 MarketPricesPage 렌더링 확인");
+    console.log("📍 현재 선택된 지역:", region || "전체 지역");
+    console.log("📋 KAMIS 지원 지역 배열:", KAMIS_SUPPORTED_REGIONS);
+  }, [region]);
+
   // 로딩 중
   if (!isLoaded) {
     return (
@@ -196,20 +203,13 @@ export default function MarketPricesPage() {
     return null; // useEffect에서 리다이렉트 처리
   }
 
-  // 디버깅: 지역 선택 UI가 렌더링되는지 확인
-  useEffect(() => {
-    console.log("🔍 MarketPricesPage 렌더링 확인");
-    console.log("📍 현재 선택된 지역:", region || "전체 지역");
-    console.log("📋 REGIONS 배열:", REGIONS);
-  }, [region]);
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 헤더 */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <TrendingUp className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">실시간 시세 조회</h1>
+          <h1 className="text-3xl font-bold">실시간 시세 조회 (공공데이터)</h1>
         </div>
         <p className="text-gray-600">
           공영도매시장의 실시간 경매 가격을 확인하세요.
@@ -235,10 +235,10 @@ export default function MarketPricesPage() {
                 </Label>
                 <div className="flex items-center gap-3">
                   <Select
-                    value={region || ""}
+                    value={region || "all"}
                     onValueChange={(value) => {
                       console.log("📍 지역 선택 변경:", value);
-                      setRegion(value);
+                      setRegion(value === "all" ? undefined : value);
                     }}
                   >
                     <SelectTrigger
@@ -248,8 +248,8 @@ export default function MarketPricesPage() {
                       <SelectValue placeholder="전체 지역 (모든 지역 조회)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">전체 지역</SelectItem>
-                      {REGIONS.map((r) => (
+                      <SelectItem value="all">전체 지역</SelectItem>
+                      {KAMIS_SUPPORTED_REGIONS.map((r) => (
                         <SelectItem key={r} value={r}>
                           {r}
                         </SelectItem>
@@ -262,7 +262,7 @@ export default function MarketPricesPage() {
                       size="sm"
                       onClick={() => {
                         console.log("📍 지역 초기화");
-                        setRegion("");
+                        setRegion(undefined);
                       }}
                       className="h-11"
                     >

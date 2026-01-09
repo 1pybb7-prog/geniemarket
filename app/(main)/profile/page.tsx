@@ -19,9 +19,8 @@
  * - zod: 유효성 검사
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -220,7 +219,7 @@ export default function ProfilePage() {
   }, [isLoaded, user, userData]);
 
   // 닉네임 중복 확인 함수
-  const checkNickname = async (value: string) => {
+  const checkNickname = useCallback(async (value: string) => {
     if (!value || value.length < 2) {
       setNicknameStatus({ available: null, message: "" });
       return;
@@ -264,7 +263,7 @@ export default function ProfilePage() {
     } finally {
       setIsCheckingNickname(false);
     }
-  };
+  }, [userData?.nickname]);
 
   // 닉네임 입력 시 디바운스된 중복 확인
   useEffect(() => {
