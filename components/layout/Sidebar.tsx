@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Package, TrendingUp, FileText, User } from "lucide-react";
+import { Home, Package, TrendingUp, FileText, User, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { href: "/products", label: "상품", icon: Package },
   { href: "/market-prices", label: "시세", icon: TrendingUp },
   { href: "/orders", label: "주문", icon: FileText },
+  { href: "/chat", label: "AI 챗봇", icon: MessageCircle },
   { href: "/profile", label: "마이페이지", icon: User },
 ];
 
